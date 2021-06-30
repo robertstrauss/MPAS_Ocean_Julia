@@ -1,4 +1,5 @@
 import NCDatasets
+using KernelAbstractions
 
 include("Namelist.jl")
 include("fixAngleEdge.jl")
@@ -7,71 +8,89 @@ gravity = 9.8
 
 # Structure for storing state of ocean
 mutable struct MPAS_Ocean
-    nCells::Int64 # number of cells
+    nCells::Integer # number of cells
     # all below have length nCells, index i in any list is about cell #i
-    sshCurrent::Array{Float64} # 1d list of sea surface heights of cells
-    sshNew::Array{Float64} # 1d future ssh
-    bottomDepth::Array{Float64} # 1d list of bottomDepth/ocean floor topography of cells
-    cellsOnCell::Array{Int64} # 2d (nCells x nEdgesOnCell[i]) indices of the cells neighboring this one
-    edgesOnCell::Array{Int64} # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
-    verticesOnCell::Array{Int64} # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
-    kiteIndexOnCell::Array{Int64}
-    nEdgesOnCell::Array{Int64} # 1d  list of the number of edges a cell has
-    edgeSignOnCell::Array{Int8} # 1d list of sign of norm vel
-    latCell::Array{Float64}
-    lonCell::Array{Float64}
-    xCell::Array{Float64}
-    yCell::Array{Float64}
-    areaCell::Array{Float64}
-    fCell::Array{Float64}
-    maxLevelCell::Array{Float64}
+    sshCurrent::AbstractArray{F} where F <: AbstractFloat # 1d list of sea surface heights of cells
+    sshNew::AbstractArray{F} where F <: AbstractFloat # 1d future ssh
+    bottomDepth::AbstractArray{F} where F <: AbstractFloat # 1d list of bottomDepth/ocean floor topography of cells
+    cellsOnCell::AbstractArray{I} where I <: Integer # 2d (nCells x nEdgesOnCell[i]) indices of the cells neighboring this one
+    edgesOnCell::AbstractArray{I} where I <: Integer # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
+    verticesOnCell::AbstractArray{I} where I <: Integer # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
+    kiteIndexOnCell::AbstractArray{I} where I <: Integer
+    nEdgesOnCell::AbstractArray{I} where I <: Integer # 1d  list of the number of edges a cell has
+    edgeSignOnCell::AbstractArray{Int8} # 1d list of sign of norm vel
+    latCell::AbstractArray{F} where F <: AbstractFloat
+    lonCell::AbstractArray{F} where F <: AbstractFloat
+    xCell::AbstractArray{F} where F <: AbstractFloat
+    yCell::AbstractArray{F} where F <: AbstractFloat
+    areaCell::AbstractArray{F} where F <: AbstractFloat
+    fCell::AbstractArray{F} where F <: AbstractFloat
+    maxLevelCell::AbstractArray{I} where I <: Integer
+    gridSpacing::AbstractArray{F} where F <: AbstractFloat
+    boundaryCell::AbstractArray{I} where I <: Integer
 
-    nEdges::Int64
+    nEdges::Integer
     # all below have length nEdges, && index i in any list is about edge #i
-    normalVelocityCurrent::Array{Float64} # 1d list of norm vel
-    normalVelocityNew::Array{Float64} # 1d list of future norm vel
-    cellsOnEdge::Array{Int64} # 2d (nEdges x 2) the indexes of the two cells forming this edge
-    edgesOnEdge::Array{Int64}
-    verticesOnEdge::Array{Int64}
-    nEdgesOnEdge::Array{Int64}
-    xEdge::Array{Float64}
-    yEdge::Array{Float64}
-    dvEdge::Array{Float64}
-    dcEdge::Array{Float64}
-    fEdge::Array{Float64} # coriolis parameter
-    angleEdge::Array{Float64}
-    weightsOnEdge::Array{Float64} # weighting for computing tangential velocity
-    maxLevelEdgeTop::Array{Float64}
-    maxLevelEdgeBot::Array{Float64}
+    normalVelocityCurrent::AbstractArray{F} where F <: AbstractFloat # 1d list of norm vel
+    normalVelocityNew::AbstractArray{F} where F <: AbstractFloat # 1d list of future norm vel
+    cellsOnEdge::AbstractArray{I} where I <: Integer # 2d (nEdges x 2) the indexes of the two cells forming this edge
+    edgesOnEdge::AbstractArray{I} where I <: Integer
+    verticesOnEdge::AbstractArray{I} where I <: Integer
+    nEdgesOnEdge::AbstractArray{I} where I <: Integer
+    xEdge::AbstractArray{F} where F <: AbstractFloat
+    yEdge::AbstractArray{F} where F <: AbstractFloat
+    dvEdge::AbstractArray{F} where F <: AbstractFloat
+    dcEdge::AbstractArray{F} where F <: AbstractFloat
+    fEdge::AbstractArray{F} where F <: AbstractFloat # coriolis parameter
+    angleEdge::AbstractArray{F} where F <: AbstractFloat
+    weightsOnEdge::AbstractArray{F} where F <: AbstractFloat # weighting for computing tangential velocity
+    maxLevelEdgeTop::AbstractArray{I} where I <: Integer
+    maxLevelEdgeBot::AbstractArray{I} where I <: Integer
+    boundaryEdge::AbstractArray{I} where I <: Integer
+    edgeMask::AbstractArray{I} where I <: Integer
 
 
-    nVertices::Int64
+    nVertices::Integer
     # all below have length nVertices, index i in any list is about vertex #i
-    latVertex::Array{Float64}
-    lonVertex::Array{Float64}
-    xVertex::Array{Float64}
-    yVertex::Array{Float64}
-    vertexDegree::Int64
-    cellsOnVertex::Array{Int64}
-    edgesOnVertex::Array{Int64}
-    edgeSignOnVertex::Array{Int8}
-    fVertex::Array{Float64}
-    areaTriangle::Array{Float64}
-    kiteAreasOnVertex::Array{Float64}
+    latVertex::AbstractArray{F} where F <: AbstractFloat
+    lonVertex::AbstractArray{F} where F <: AbstractFloat
+    xVertex::AbstractArray{F} where F <: AbstractFloat
+    yVertex::AbstractArray{F} where F <: AbstractFloat
+    vertexDegree::Integer
+    cellsOnVertex::AbstractArray{I} where I <: Integer
+    edgesOnVertex::AbstractArray{I} where I <: Integer
+    edgeSignOnVertex::AbstractArray{I} where I <: Integer
+    fVertex::AbstractArray{F} where F <: AbstractFloat
+    areaTriangle::AbstractArray{F} where F <: AbstractFloat
+    kiteAreasOnVertex::AbstractArray{F} where F <: AbstractFloat
+    maxLevelVertexTop::AbstractArray{I} where I <: Integer
+    maxLevelVertexBot::AbstractArray{I} where I <: Integer
+    boundaryVertex::AbstractArray{I} where I <: Integer
 
 
-    ExactSolutionParameters::Array{Float64}
+    nVertLevels::Integer
+
+
+    ExactSolutionParameters::AbstractArray{F} where F <: AbstractFloat
     myNamelist::Namelist
 
-    gridSpacingMagnitude::Float64
-    gridSpacing::Array{Float64}
+    gridSpacingMagnitude::AbstractFloat
 
-    lX::Float64
-    lY::Float64
+    # X and Y size of grid, domain
+    lX::AbstractFloat
+    lY::AbstractFloat
+
+    nNonPeriodicBoundaryCells::Integer
+    nNonPeriodicBoundaryEdges::Integer
+    nNonPeriodicBoundaryVertices::Integer
     
-    nNonPeriodicBoundaryCells::Int64
-    nNonPeriodicBoundaryEdges::Int64
-    nNonPeriodicBoundaryVertices::Int64
+    
+    
+    device
+    workGroupSize::Integer
+    
+  
+
 
     # load state from file
     function MPAS_Ocean(print_basic_geometry_mesh=false, mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
@@ -80,16 +99,13 @@ mutable struct MPAS_Ocean
                         periodicity = "Periodic")
         myMPAS_O = new()
 
+
+
+
         myMPAS_O.myNamelist = Namelist()
 
-        path = mesh_directory
-#         if ! isdir(path)
-#             mkpath(path)
-#         end
-        # cd(path)
-
-        base_mesh_file = NCDatasets.Dataset("$path/$base_mesh_file_name", "r", format=:netcdf4_classic)
-        mesh_file = NCDatasets.Dataset("$path/$mesh_file_name", "r", format=:netcdf4_classic)
+        base_mesh_file = NCDatasets.Dataset("$mesh_directory/$base_mesh_file_name", "r", format=:netcdf4_classic)
+        mesh_file = NCDatasets.Dataset("$mesh_directory/$mesh_file_name", "r", format=:netcdf4_classic)
 
         maxEdges = mesh_file.dim["maxEdges"]
 
@@ -98,11 +114,13 @@ mutable struct MPAS_Ocean
         myMPAS_O.nEdges = mesh_file.dim["nEdges"]
         myMPAS_O.nVertices = mesh_file.dim["nVertices"]
         myMPAS_O.vertexDegree = mesh_file.dim["vertexDegree"]
-        
+        myMPAS_O.nVertLevels = 1
+
+        # will be incremented in ocn_init_routines_compute_max_level
         myMPAS_O.nNonPeriodicBoundaryEdges = 0
         myMPAS_O.nNonPeriodicBoundaryVertices = 0
         myMPAS_O.nNonPeriodicBoundaryCells = 0
-        
+
         nCells = myMPAS_O.nCells
         nEdges = myMPAS_O.nEdges
         nVertices = myMPAS_O.nVertices
@@ -125,16 +143,16 @@ mutable struct MPAS_Ocean
         myMPAS_O.cellsOnVertex = my_mesh_file["cellsOnVertex"][:]
         myMPAS_O.edgesOnVertex = my_mesh_file["edgesOnVertex"][:]
         #
-        
-        
-        myMPAS_O.angleEdge = my_mesh_file["angleEdge"][:]
-        if true
-            myMPAS_O.angleEdge[:] = fix_angleEdge(mesh_directory,my_mesh_file_name,determineYCellAlongLatitude=true,
-                                       printOutput=false,printRelevantMeshData=false)
-        end
 
-        
-        
+
+        myMPAS_O.angleEdge = my_mesh_file["angleEdge"][:]
+        # if true
+        myMPAS_O.angleEdge[:] = fix_angleEdge(mesh_directory,my_mesh_file_name,determineYCellAlongLatitude=true,
+                                   printOutput=false,printRelevantMeshData=false)
+        # end
+
+
+
         myMPAS_O.xEdge = my_mesh_file["xEdge"][:]
         myMPAS_O.yEdge = my_mesh_file["yEdge"][:]
 
@@ -143,14 +161,14 @@ mutable struct MPAS_Ocean
         myMPAS_O.lonCell = base_mesh_file["lonCell"][:]
         myMPAS_O.xCell = base_mesh_file["xCell"][:]
         myMPAS_O.yCell = base_mesh_file["yCell"][:]
-        
+
         myMPAS_O.areaCell = my_mesh_file["areaCell"][:]
         myMPAS_O.dvEdge = my_mesh_file["dvEdge"][:]
         myMPAS_O.dcEdge = my_mesh_file["dcEdge"][:]
-        
+
         myMPAS_O.kiteAreasOnVertex = my_mesh_file["kiteAreasOnVertex"]
         myMPAS_O.areaTriangle = my_mesh_file["areaTriangle"][:]
-        
+
 
         myMPAS_O.latVertex = base_mesh_file["latVertex"][:]
         myMPAS_O.lonVertex = base_mesh_file["lonVertex"][:]
@@ -167,6 +185,21 @@ mutable struct MPAS_Ocean
             myMPAS_O.gridSpacingMagnitude = myMPAS_O.xCell[1+1] - myMPAS_O.xCell[0+1]
         end
 
+
+        # For a mesh with non-periodic zonal boundaries, adjust the zonal coordinates of the cell centers,
+        # vertices and edges.
+        dx = myMPAS_O.gridSpacingMagnitude # i.e. dx = myMPAS_O.dcEdge[0]
+        dy = sqrt(3.0)/2.0*dx
+        if periodicity == "NonPeriodic_x" || periodicity == "NonPeriodic_xy"
+            myMPAS_O.xCell[:] .-= dx
+            myMPAS_O.xVertex[:] .-= dx
+            myMPAS_O.xEdge[:] .-= dx
+        end
+        if periodicity == "NonPeriodic_y" || periodicity == "NonPeriodic_xy"
+            myMPAS_O.yCell[:] .-= dy
+            myMPAS_O.yVertex[:] .-= dy
+            myMPAS_O.yEdge[:] .-= dy
+        end
 
         # Specify the zonal && meridional extents of the domain.
         myMPAS_O.lX = round(maximum(myMPAS_O.xCell)) # i.e. myMPAS_O.lX = sqrt(float(myMPAS_O.nCells))*dx
@@ -190,14 +223,25 @@ mutable struct MPAS_Ocean
 
 
         myMPAS_O.weightsOnEdge = my_mesh_file["weightsOnEdge"][:]
-        
-        myMPAS_O.edgeSignOnCell = zeros(Int32, (nCells,maxEdges))
-        
+
+        myMPAS_O.edgeSignOnCell = zeros(Int8, (nCells,maxEdges))
         ocn_init_routines_setup_sign_and_index_fields!(myMPAS_O)
-        
-        
-#         replace!(myMPAS_O.edgesOnEdge, 0=>myMPAS_O.nEdges)
-#         replace!(myMPAS_O.cellsOnEdge, 0=>myMPAS_O.nEdges)
+
+
+        myMPAS_O.boundaryCell = zeros(Int8, (nCells, myMPAS_O.nVertLevels))
+        myMPAS_O.boundaryEdge = zeros(Int8, (nEdges, myMPAS_O.nVertLevels))
+        myMPAS_O.boundaryVertex = zeros(Int8, (nVertices, myMPAS_O.nVertLevels))
+        myMPAS_O.edgeMask = zeros(Int8, nEdges)
+
+        myMPAS_O.maxLevelCell = zeros(Int64, nCells)
+        myMPAS_O.maxLevelEdgeTop = zeros(Int64, nEdges)
+        myMPAS_O.maxLevelEdgeBot = zeros(Int64, nEdges)
+        myMPAS_O.maxLevelVertexTop = zeros(Int64, nVertices)
+        myMPAS_O.maxLevelVertexBot = zeros(Int64, nVertices)
+
+
+        # replace!(myMPAS_O.edgesOnEdge, 0=>myMPAS_O.nEdges)
+        # replace!(myMPAS_O.cellsOnEdge, 0=>myMPAS_O.nCells)
 
 
         ## defining the prognostic variables
@@ -207,10 +251,30 @@ mutable struct MPAS_Ocean
         myMPAS_O.normalVelocityCurrent = zeros(Float64, (nEdges))
         myMPAS_O.normalVelocityNew = zeros(Float64, (nEdges))
 
+        
+        myMPAS_O.workGroupSize = 16
 
         return myMPAS_O
     end
 end
+
+
+
+
+
+
+function moveToDevice!(myMPAS_O, device, dtype=Float32)
+    myMPAS_O.device = device
+    
+    arraytype = myMPAS_O.device == CUDAKernels.CUDADevice() ? CUDA.CuArray{dtype} : Array{dtype}
+    
+    for field in fieldnames(MPAS_Ocean)
+        if typeof(getfield(myMPAS_O, field)) <: AbstractArray
+            setfield!(myMPAS_O, field, arraytype(getfield(myMPAS_O, field)))
+        end
+    end
+end
+
 
 
 
@@ -261,10 +325,10 @@ end
 
 function ocn_init_routines_compute_max_level!(myMPAS_O)
     for iEdge in 1:myMPAS_O.nEdges
-        iCell1 = myMPAS_O.cellsOnEdge[iEdge,1]
-        iCell2 = myMPAS_O.cellsOnEdge[iEdge,2]
+        iCell1 = myMPAS_O.cellsOnEdge[1,iEdge]
+        iCell2 = myMPAS_O.cellsOnEdge[2,iEdge]
         if iCell1 == 0 || iCell2 == 0
-            myMPAS_O.boundaryEdge[iEdge,:] = 1.0
+            myMPAS_O.boundaryEdge[iEdge,:] .= 1.0
             myMPAS_O.maxLevelEdgeTop[iEdge] = -1
             if iCell1 == 0
                 myMPAS_O.maxLevelEdgeBot[iEdge] = myMPAS_O.maxLevelCell[iCell2]
@@ -276,9 +340,9 @@ function ocn_init_routines_compute_max_level!(myMPAS_O)
             myMPAS_O.maxLevelEdgeBot[iEdge] = max(myMPAS_O.maxLevelCell[iCell1], myMPAS_O.maxLevelCell[iCell2])
         end
     end
-    
+
     for iVertex in 1:myMPAS_O.nVertices
-        iCell1 = myMPAS_O.cellsOnVertex[iVertex,1]
+        iCell1 = myMPAS_O.cellsOnVertex[1,iVertex]
         if iCell1 == 0
             myMPAS_O.maxLevelVertexBot[iVertex] = -1
             myMPAS_O.maxLevelVertexTop[iVertex] = -1
@@ -286,64 +350,90 @@ function ocn_init_routines_compute_max_level!(myMPAS_O)
             myMPAS_O.maxLevelVertexBot[iVertex] = myMPAS_O.maxLevelCell[iCell1]
             myMPAS_O.maxLevelVertexTop[iVertex] = myMPAS_O.maxLevelCell[iCell1]
         end
-        
+
         for i in 1:myMPAS_O.vertexDegree
-            iCell = myMPAS_O.cellsOnVertex[iVertex, i]
+            iCell = myMPAS_O.cellsOnVertex[i, iVertex]
             if iCell == 0
                 myMPAS_O.maxLevelVertexBot[iVertex] = max(myMPAS_O.maxLevelVertexBot[iVertex], -1)
                 myMPAS_O.maxLevelVertexBot[iVertex] = min(myMPAS_O.maxLevelVertexTop[iVertex], -1)
             else
-                myMPAS_O.maxLevelVertexBot[iVertex] = max(myMPAS_O.maxLevelVertexBot[iVertex], 
+                myMPAS_O.maxLevelVertexBot[iVertex] = max(myMPAS_O.maxLevelVertexBot[iVertex],
                                                             myMPAS_O.maxLevelCell[iCell])
-                myMPAS_O.maxLevelVertexTop[iVertex] = min(myMPAS_O.maxLevelVertexTop[iVertex], 
+                myMPAS_O.maxLevelVertexTop[iVertex] = min(myMPAS_O.maxLevelVertexTop[iVertex],
                                                             myMPAS_O.maxLevelCell[iCell])
             end
         end
-        
-        determine_boundaryEdge_Generalized_Method = true
-        
-        if determine_boundaryEdge_Generalized_Method
-            myMPAS_O.boundaryEdge[:,:] .= 1
+    end
+
+    determine_boundaryEdge_Generalized_Method = true
+
+    if determine_boundaryEdge_Generalized_Method
+        myMPAS_O.boundaryEdge[:,:] .= 1
+    end
+    myMPAS_O.edgeMask[:,:] .= 0
+
+    for iEdge in 1:myMPAS_O.nEdges
+        index_UpperLimit = myMPAS_O.maxLevelEdgeTop[iEdge]
+        if index_UpperLimit > -1
+            if determine_boundaryEdge_Generalized_Method
+                myMPAS_O.boundaryEdge[iEdge,1:index_UpperLimit+1] .= 0
+            end
+            myMPAS_O.edgeMask[iEdge,1:index_UpperLimit+1] .= 1
         end
-        myMPAS_O.edgeMask[:,:] .= 0
-        
-        for iEdge in 1:myMPAS_O.nEdges
-            index_UpperLimit = myMPAS_O.maxLevelEdgeTop[iEdge]
-            if index_UpperLimit > -1
-                if determine_boundaryEdge_Generalized_Method
-                    myMPAS_O.boundaryEdge[iEdge,1:index_UpperLimit+2] = 0
-                end
-                myMPAS_O.boundaryEdge[iEdge,1:index_UpperLimit+2] = 1
+    end
+
+    for iEdge in 1:myMPAS_O.nEdges
+        iCell1 = myMPAS_O.cellsOnEdge[1, iEdge]
+        iCell2 = myMPAS_O.cellsOnEdge[2, iEdge]
+
+        iVertex1 = myMPAS_O.verticesOnEdge[1, iEdge]
+        iVertex2 = myMPAS_O.verticesOnEdge[2, iEdge]
+
+        if myMPAS_O.boundaryEdge[iEdge] == 1
+            if iCell1 !== 0
+                myMPAS_O.boundaryCell[iCell1] = 1
+            end
+            if iCell2 !== 0
+                myMPAS_O.boundaryCell[iCell2] = 1
+            end
+            myMPAS_O.boundaryVertex[iVertex1] = 1
+            myMPAS_O.boundaryVertex[iVertex2] = 1
+        end
+    end
+
+
+    for iCell in 1:myMPAS_O.nCells
+        for k in 1:myMPAS_O.nVertLevels
+            if myMPAS_O.maxLevelCell[iCell] >= k
+                myMPAS_O.cellMask[iCell, k] = 1
             end
         end
-        
-        for iEdge in 1:myMPAS_O.nEdges
-            iCell1 = myMPAS_O.cellsOnEdge[iEdge, 1]
-            iCell2 = myMPAS_O.cellsOnEdge[iEdge, 2]
-            
-            iVertex1 = myMPAS_O.verticesOnEdge[iEdge, 1]
-            iVertex2 = myMPAS_O.verticesOnEdge[iEdge, 2]
-            
-            if myMPAS_O.boundaryEdge[iEdge] == 1
-                if iCell1 !== 0
-                    myMPAS_O.boundaryCell[iCell1] = 1
-                end
-                if iCell2 !== 0
-                    myMPAS_O.boundaryCell[iCell2] = 1
-                end
-                myMPAS_O.boundaryVertex[iVertex1] = 1
-                myMPAS_O.boundaryVertex[iVertex2] = 1
-            end
-        end
-        
-        for iCell in 1:myMPAS_O.nCells
+    end
+    for iVertex in 1:myMPAS_O.nVertices
+        for k in 1:myMPAS_O.nVertLevels
             if myMPAS_O.maxLevelVertexBot[iVertex] >= k
                 myMPAS_O.vertexMask[iVertex, k] = 1
             end
         end
-        
-        for iVertex in 1:myMPAS_O.nVertices
-            if myMPAS_O.boundaryEdge[iEdge,0011
+    end
+
+
+    for iEdge in 1:myMPAS_O.nEdges
+        if myMPAS_O.boundaryEdge[iEdge, 1] == 1.0
+            myMPAS_O.nNonPeriodicBoundaryEdges += 1
+        end
+    end
+    for iVertex in 1:myMPAS_O.nVertices
+        if myMPAS_O.boundaryVertex[iVertex, 1] == 1.0
+            myMPAS_O.nNonPeriodicBoundaryVertices += 1
+        end
+    end
+    for iCell in 1:myMPAS_O.nCells
+        if myMPAS_O.boundaryCell[iCell, 1] == 1.0
+            myMPAS_O.nNonPeriodicBoundaryCells += 1
+        end
+    end
+end
 
 
 function DetermineExactSolutionParameters(myMPAS_O,printPhaseSpeedOfWaveModes)

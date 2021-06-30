@@ -1,4 +1,5 @@
 import NCDatasets
+using KernelAbstractions
 
 include("Namelist.jl")
 include("fixAngleEdge.jl")
@@ -7,81 +8,89 @@ gravity = 9.8
 
 # Structure for storing state of ocean
 mutable struct MPAS_Ocean
-    nCells::Int64 # number of cells
+    nCells::Integer # number of cells
     # all below have length nCells, index i in any list is about cell #i
-    sshCurrent::Array{Float64} # 1d list of sea surface heights of cells
-    sshNew::Array{Float64} # 1d future ssh
-    bottomDepth::Array{Float64} # 1d list of bottomDepth/ocean floor topography of cells
-    cellsOnCell::Array{Int64} # 2d (nCells x nEdgesOnCell[i]) indices of the cells neighboring this one
-    edgesOnCell::Array{Int64} # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
-    verticesOnCell::Array{Int64} # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
-    kiteIndexOnCell::Array{Int64}
-    nEdgesOnCell::Array{Int64} # 1d  list of the number of edges a cell has
-    edgeSignOnCell::Array{Int8} # 1d list of sign of norm vel
-    latCell::Array{Float64}
-    lonCell::Array{Float64}
-    xCell::Array{Float64}
-    yCell::Array{Float64}
-    areaCell::Array{Float64}
-    fCell::Array{Float64}
-    maxLevelCell::Array{Int64}
-    gridSpacing::Array{Float64}
-    boundaryCell::Array{Float64}
+    sshCurrent::AbstractArray{F} where F <: AbstractFloat # 1d list of sea surface heights of cells
+    sshNew::AbstractArray{F} where F <: AbstractFloat # 1d future ssh
+    bottomDepth::AbstractArray{F} where F <: AbstractFloat # 1d list of bottomDepth/ocean floor topography of cells
+    cellsOnCell::AbstractArray{I} where I <: Integer # 2d (nCells x nEdgesOnCell[i]) indices of the cells neighboring this one
+    edgesOnCell::AbstractArray{I} where I <: Integer # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
+    verticesOnCell::AbstractArray{I} where I <: Integer # 2d (nCells x nEdgesOnCell[i]) indices of the edges/normal velocities bordering this one
+    kiteIndexOnCell::AbstractArray{I} where I <: Integer
+    nEdgesOnCell::AbstractArray{I} where I <: Integer # 1d  list of the number of edges a cell has
+    edgeSignOnCell::AbstractArray{Int8} # 1d list of sign of norm vel
+    latCell::AbstractArray{F} where F <: AbstractFloat
+    lonCell::AbstractArray{F} where F <: AbstractFloat
+    xCell::AbstractArray{F} where F <: AbstractFloat
+    yCell::AbstractArray{F} where F <: AbstractFloat
+    areaCell::AbstractArray{F} where F <: AbstractFloat
+    fCell::AbstractArray{F} where F <: AbstractFloat
+    maxLevelCell::AbstractArray{I} where I <: Integer
+    gridSpacing::AbstractArray{F} where F <: AbstractFloat
+    boundaryCell::AbstractArray{I} where I <: Integer
 
-    nEdges::Int64
+    nEdges::Integer
     # all below have length nEdges, && index i in any list is about edge #i
-    normalVelocityCurrent::Array{Float64} # 1d list of norm vel
-    normalVelocityNew::Array{Float64} # 1d list of future norm vel
-    cellsOnEdge::Array{Int64} # 2d (nEdges x 2) the indexes of the two cells forming this edge
-    edgesOnEdge::Array{Int64}
-    verticesOnEdge::Array{Int64}
-    nEdgesOnEdge::Array{Int64}
-    xEdge::Array{Float64}
-    yEdge::Array{Float64}
-    dvEdge::Array{Float64}
-    dcEdge::Array{Float64}
-    fEdge::Array{Float64} # coriolis parameter
-    angleEdge::Array{Float64}
-    weightsOnEdge::Array{Float64} # weighting for computing tangential velocity
-    maxLevelEdgeTop::Array{Int64}
-    maxLevelEdgeBot::Array{Int64}
-    boundaryEdge::Array{Int8}
-    edgeMask::Array{Int8}
+    normalVelocityCurrent::AbstractArray{F} where F <: AbstractFloat # 1d list of norm vel
+    normalVelocityNew::AbstractArray{F} where F <: AbstractFloat # 1d list of future norm vel
+    cellsOnEdge::AbstractArray{I} where I <: Integer # 2d (nEdges x 2) the indexes of the two cells forming this edge
+    edgesOnEdge::AbstractArray{I} where I <: Integer
+    verticesOnEdge::AbstractArray{I} where I <: Integer
+    nEdgesOnEdge::AbstractArray{I} where I <: Integer
+    xEdge::AbstractArray{F} where F <: AbstractFloat
+    yEdge::AbstractArray{F} where F <: AbstractFloat
+    dvEdge::AbstractArray{F} where F <: AbstractFloat
+    dcEdge::AbstractArray{F} where F <: AbstractFloat
+    fEdge::AbstractArray{F} where F <: AbstractFloat # coriolis parameter
+    angleEdge::AbstractArray{F} where F <: AbstractFloat
+    weightsOnEdge::AbstractArray{F} where F <: AbstractFloat # weighting for computing tangential velocity
+    maxLevelEdgeTop::AbstractArray{I} where I <: Integer
+    maxLevelEdgeBot::AbstractArray{I} where I <: Integer
+    boundaryEdge::AbstractArray{I} where I <: Integer
+    edgeMask::AbstractArray{I} where I <: Integer
 
 
-    nVertices::Int64
+    nVertices::Integer
     # all below have length nVertices, index i in any list is about vertex #i
-    latVertex::Array{Float64}
-    lonVertex::Array{Float64}
-    xVertex::Array{Float64}
-    yVertex::Array{Float64}
-    vertexDegree::Int64
-    cellsOnVertex::Array{Int64}
-    edgesOnVertex::Array{Int64}
-    edgeSignOnVertex::Array{Int8}
-    fVertex::Array{Float64}
-    areaTriangle::Array{Float64}
-    kiteAreasOnVertex::Array{Float64}
-    maxLevelVertexTop::Array{Int64}
-    maxLevelVertexBot::Array{Int64}
-    boundaryVertex::Array{Float64}
+    latVertex::AbstractArray{F} where F <: AbstractFloat
+    lonVertex::AbstractArray{F} where F <: AbstractFloat
+    xVertex::AbstractArray{F} where F <: AbstractFloat
+    yVertex::AbstractArray{F} where F <: AbstractFloat
+    vertexDegree::Integer
+    cellsOnVertex::AbstractArray{I} where I <: Integer
+    edgesOnVertex::AbstractArray{I} where I <: Integer
+    edgeSignOnVertex::AbstractArray{I} where I <: Integer
+    fVertex::AbstractArray{F} where F <: AbstractFloat
+    areaTriangle::AbstractArray{F} where F <: AbstractFloat
+    kiteAreasOnVertex::AbstractArray{F} where F <: AbstractFloat
+    maxLevelVertexTop::AbstractArray{I} where I <: Integer
+    maxLevelVertexBot::AbstractArray{I} where I <: Integer
+    boundaryVertex::AbstractArray{I} where I <: Integer
 
 
-    nVertLevels::Int64
+    nVertLevels::Integer
 
 
-    ExactSolutionParameters::Array{Float64}
+    ExactSolutionParameters::AbstractArray{F} where F <: AbstractFloat
     myNamelist::Namelist
 
-    gridSpacingMagnitude::Float64
+    gridSpacingMagnitude::AbstractFloat
 
     # X and Y size of grid, domain
-    lX::Float64
-    lY::Float64
+    lX::AbstractFloat
+    lY::AbstractFloat
 
-    nNonPeriodicBoundaryCells::Int64
-    nNonPeriodicBoundaryEdges::Int64
-    nNonPeriodicBoundaryVertices::Int64
+    nNonPeriodicBoundaryCells::Integer
+    nNonPeriodicBoundaryEdges::Integer
+    nNonPeriodicBoundaryVertices::Integer
+
+
+
+    device
+    workGroupSize::Integer
+
+
+
 
     # load state from file
     function MPAS_Ocean(print_basic_geometry_mesh=false, mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
@@ -89,6 +98,9 @@ mutable struct MPAS_Ocean
                         mesh_file_name = "mesh.nc";
                         periodicity = "Periodic")
         myMPAS_O = new()
+
+
+
 
         myMPAS_O.myNamelist = Namelist()
 
@@ -240,9 +252,29 @@ mutable struct MPAS_Ocean
         myMPAS_O.normalVelocityNew = zeros(Float64, (nEdges))
 
 
+        myMPAS_O.workGroupSize = 16
+
         return myMPAS_O
     end
 end
+
+
+
+
+
+
+function moveToDevice!(myMPAS_O, device)
+    myMPAS_O.device = device
+
+    arraytype = myMPAS_O.device == CUDAKernels.CUDADevice() ? CUDA.CuArray : Array
+
+    for field in fieldnames(MPAS_Ocean)
+        if typeof(getfield(myMPAS_O, field)) <: AbstractArray
+            setfield!(myMPAS_O, field, arraytype(getfield(myMPAS_O, field)))
+        end
+    end
+end
+
 
 
 

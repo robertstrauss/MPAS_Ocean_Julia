@@ -1,5 +1,5 @@
 import NCDatasets
-using KernelAbstractions
+# import KernelAbstractions
 
 include("Namelist.jl")
 include("fixAngleEdge.jl")
@@ -83,13 +83,13 @@ mutable struct MPAS_Ocean
     nNonPeriodicBoundaryCells::Integer
     nNonPeriodicBoundaryEdges::Integer
     nNonPeriodicBoundaryVertices::Integer
-    
-    
-    
+
+
+
     device
     workGroupSize::Integer
-    
-  
+
+
 
 
     # load state from file
@@ -251,7 +251,7 @@ mutable struct MPAS_Ocean
         myMPAS_O.normalVelocityCurrent = zeros(Float64, (nEdges))
         myMPAS_O.normalVelocityNew = zeros(Float64, (nEdges))
 
-        
+
         myMPAS_O.workGroupSize = 16
 
         return myMPAS_O
@@ -263,11 +263,11 @@ end
 
 
 
-function moveToDevice!(myMPAS_O, device, dtype=Float32)
+function moveToDevice!(myMPAS_O, device)
     myMPAS_O.device = device
-    
-    arraytype = myMPAS_O.device == CUDAKernels.CUDADevice() ? CUDA.CuArray{dtype} : Array{dtype}
-    
+
+    arraytype = myMPAS_O.device == CUDAKernels.CUDADevice() ? CUDA.CuArray : Array
+
     for field in fieldnames(MPAS_Ocean)
         if typeof(getfield(myMPAS_O, field)) <: AbstractArray
             setfield!(myMPAS_O, field, arraytype(getfield(myMPAS_O, field)))

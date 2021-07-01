@@ -1,5 +1,5 @@
 import NCDatasets
-using KernelAbstractions
+# import KernelAbstractions
 
 include("Namelist.jl")
 include("fixAngleEdge.jl")

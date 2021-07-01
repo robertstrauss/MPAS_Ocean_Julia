@@ -1,5 +1,5 @@
 using CUDA
-using KernelAbstractions
+# using KernelAbstractions
 
 
 function ComputeSSHTendency_singleindex(iCell::Integer, myMPAS_O, normalVelocity, ssh)
@@ -73,10 +73,7 @@ function ComputeNormalVelocityTendency_singleindex(iEdge::Integer, myMPAS_O, nor
     cell1Index, cell2Index = myMPAS_O.cellsOnEdge[:,iEdge]
 
     if cell1Index !== 0 && cell2Index !== 0
-        # TODO add nonlinear terms
         normalVelocityTendency[iEdge] = gravity * ( ssh[cell1Index] - ssh[cell2Index] ) / myMPAS_O.dcEdge[iEdge] # gravity term
-    else
-        # TODO boundary condition
     end
 
     # coriolis term
@@ -109,7 +106,6 @@ function ComputeNormalVelocityTendency(myMPAS_O::MPAS_Ocean, normalVelocity, ssh
         cell1Index, cell2Index = myMPAS_O.cellsOnEdge[:,iEdge]
         
         if cell1Index !== 0 && cell2Index !== 0
-            # TODO add nonlinear terms
         normalVelocityTendency[iEdge] = gravity * ( ssh[cell1Index] - ssh[cell2Index] ) / myMPAS_O.dcEdge[iEdge] # gravity term
         end
         
@@ -175,84 +171,81 @@ end
 
 
 
-@kernel function stepNormalVelocity!(normalVelocityNew, normalVelocity, ssh, cellsOnEdge, nEdgesOnEdge, edgesOnEdge, weightsOnEdge, fEdge, dcEdge, dt)
+# @kernel function stepNormalVelocity!(normalVelocityNew, normalVelocity, ssh, cellsOnEdge, nEdgesOnEdge, edgesOnEdge, weightsOnEdge, fEdge, dcEdge, dt)
     
     
     
-    iEdge = @index(Global)
-    ## du/dt = - g dn/dx + coriolis + other
+#     iEdge = @index(Global)
+#     ## du/dt = - g dn/dx + coriolis + other
     
     
     
-    normalVelocityNew[iEdge] = normalVelocity[iEdge]
+#     normalVelocityNew[iEdge] = normalVelocity[iEdge]
     
-    # take gradient of sshCurrent across edge
-    cell1Index, cell2Index = cellsOnEdge[:,iEdge]
+#     # take gradient of sshCurrent across edge
+#     cell1Index, cell2Index = cellsOnEdge[:,iEdge]
 
-    if cell1Index !== 0 && cell2Index !== 0
-        # TODO add nonlinear terms
-        normalVelocityNew[iEdge] += gravity * ( ssh[cell1Index] - ssh[cell2Index] ) / dcEdge[iEdge] # gravity term
-    else
-        # TODO boundary condition
-    end
+#     if cell1Index !== 0 && cell2Index !== 0
+#         normalVelocityNew[iEdge] += gravity * ( ssh[cell1Index] - ssh[cell2Index] ) / dcEdge[iEdge] # gravity term
+#     end
     
     
     
 
-    # coriolis term
-    for i in 1:nEdgesOnEdge[iEdge]
-        eoe = edgesOnEdge[i,iEdge]
+#     # coriolis term
+#     for i in 1:nEdgesOnEdge[iEdge]
+#         eoe = edgesOnEdge[i,iEdge]
 
-        if eoe !== 0 # boundary conditions: coriolis not influenced by edges outside boundaries
-            normalVelocityNew[iEdge] += weightsOnEdge[i,iEdge] * normalVelocity[eoe] * fEdge[eoe]
-        end
-    end
+#         if eoe !== 0 # boundary conditions: coriolis not influenced by edges outside boundaries
+#             normalVelocityNew[iEdge] += weightsOnEdge[i,iEdge] * normalVelocity[eoe] * fEdge[eoe]
+#         end
+#     end
     
-#     @inbounds myMPAS_O.normalVelocityNew[iEdge] = myMPAS_O.normalVelocityCurrent[iEdge] + dt* normalVelocityTendency#ComputeNormalVelocityTendency(iEdge, myMPAS_O, normalVelocity, ssh)
+# #     @inbounds myMPAS_O.normalVelocityNew[iEdge] = myMPAS_O.normalVelocityCurrent[iEdge] + dt* normalVelocityTendency#ComputeNormalVelocityTendency(iEdge, myMPAS_O, normalVelocity, ssh)
     
-    nothing
-end
+#     nothing
+# end
     
-@kernel function stepSSH!(dt)
-#     iCell = @index(Global)
-#     @inbounds myMPAS_O.sshNew[iEdge] = myMPAS_O.sshCurrent[iEdge] + dt*ComputeSSHTendency(iCell, myMPAS_O, normalVelocity, ssh)
+# @kernel function stepSSH!(dt)
+# #     iCell = @index(Global)
+# #     @inbounds myMPAS_O.sshNew[iEdge] = myMPAS_O.sshCurrent[iEdge] + dt*ComputeSSHTendency(iCell, myMPAS_O, normalVelocity, ssh)
     
-    nothing
-end
+#     nothing
+# end
 
 
-function forwardBackwardStep!(myMPAS_O, dt)
+# function forwardBackwardStep!(myMPAS_O, dt)
     
-#     normalVelocity = CuArray(myMPAS_O.normalVelocityCurrent)
-#     ssh = CuArray(myMPAS_O.sshCurrent)
-#     nEdgesOnCell = CuArray(myMPAS_O.nEdgesOnCell)
-#     edgesOnCell = CuArray(myMPAS_O.edgesOnCell)
-#     cellsOnCell = CuArray(myMPAS_O.cellsOnCell)
-#     bottomDepth = CuArray(myMPAS_O.bottomDepth)
-#     edgeSignOnCell = CuArray(myMPAS_O.edgeSignOnCell)
-#     dvEdge = CuArray(myMPAS_O.dvEdge)
-#     areaCell = CuArray(myMPAS_O.areaCell)
+# #     normalVelocity = CuArray(myMPAS_O.normalVelocityCurrent)
+# #     ssh = CuArray(myMPAS_O.sshCurrent)
+# #     nEdgesOnCell = CuArray(myMPAS_O.nEdgesOnCell)
+# #     edgesOnCell = CuArray(myMPAS_O.edgesOnCell)
+# #     cellsOnCell = CuArray(myMPAS_O.cellsOnCell)
+# #     bottomDepth = CuArray(myMPAS_O.bottomDepth)
+# #     edgeSignOnCell = CuArray(myMPAS_O.edgeSignOnCell)
+# #     dvEdge = CuArray(myMPAS_O.dvEdge)
+# #     areaCell = CuArray(myMPAS_O.areaCell)
     
-    stepNormalVelocityKernel! = stepNormalVelocity!(myMPAS_O.device, myMPAS_O.workGroupSize)
-    stepSSHKernel!            = stepSSH!(myMPAS_O.device, myMPAS_O.workGroupSize)
+#     stepNormalVelocityKernel! = stepNormalVelocity!(myMPAS_O.device, myMPAS_O.workGroupSize)
+#     stepSSHKernel!            = stepSSH!(myMPAS_O.device, myMPAS_O.workGroupSize)
     
-    stepNormalVelocityEvent = stepNormalVelocityKernel!(myMPAS_O.normalVelocityNew,
-                                                        myMPAS_O.normalVelocityCurrent,
-                                                        myMPAS_O.sshCurrent,
-                                                        myMPAS_O.cellsOnEdge,
-                                                        myMPAS_O.nEdgesOnEdge,
-                                                        myMPAS_O.edgesOnEdge,
-                                                        myMPAS_O.weightsOnEdge,
-                                                        myMPAS_O.fEdge,
-                                                        myMPAS_O.dcEdge,
-                                                        dt, ndrange=myMPAS_O.nEdges)
-    wait(myMPAS_O.device, stepNormalVelocityEvent)
+#     stepNormalVelocityEvent = stepNormalVelocityKernel!(myMPAS_O.normalVelocityNew,
+#                                                         myMPAS_O.normalVelocityCurrent,
+#                                                         myMPAS_O.sshCurrent,
+#                                                         myMPAS_O.cellsOnEdge,
+#                                                         myMPAS_O.nEdgesOnEdge,
+#                                                         myMPAS_O.edgesOnEdge,
+#                                                         myMPAS_O.weightsOnEdge,
+#                                                         myMPAS_O.fEdge,
+#                                                         myMPAS_O.dcEdge,
+#                                                         dt, ndrange=myMPAS_O.nEdges)
+#     wait(myMPAS_O.device, stepNormalVelocityEvent)
     
-    stepSSHEvent            = stepSSHKernel!(dt, ndrange=myMPAS_O.nCells)
-    wait(myMPAS_O.device, stepSSHEvent)
+#     stepSSHEvent            = stepSSHKernel!(dt, ndrange=myMPAS_O.nCells)
+#     wait(myMPAS_O.device, stepSSHEvent)
     
-    return nothing
-end
+#     return nothing
+# end
 
 # function integrate!(method, myMPAS_O, dt, simulationTime; callback = function() end, callbackTimes=[])
 #     discreteCallbackTimes = round.(collect(callbackTimes)/dt)*dt
@@ -268,3 +261,37 @@ end
 # end
         
         
+
+
+# function makeStepKernels(myMPAS_O)
+#     stepNormalVelocityKernel! = stepNormalVelocity!(myMPAS_O.device, myMPAS_O.workGroupSize)
+#     stepSSHKernel!            = stepSSH!(myMPAS_O.device, myMPAS_O.workGroupSize)
+#     return stepNormalVelocityKernel!, stepSSHKernel!
+# end
+
+# function forwardBackwardStep!(myMPAS_O, dt, stepNormalVelocityKernel!, stepSSHKernel!)
+#     stepNormalVelocityEvent = stepNormalVelocityKernel!(myMPAS_O.normalVelocityNew,
+#                                                         myMPAS_O.normalVelocityCurrent,
+#                                                         myMPAS_O.sshCurrent,
+#                                                         myMPAS_O.cellsOnEdge,
+#                                                         myMPAS_O.nEdgesOnEdge,
+#                                                         myMPAS_O.edgesOnEdge,
+#                                                         myMPAS_O.weightsOnEdge,
+#                                                         myMPAS_O.fEdge,
+#                                                         myMPAS_O.dcEdge,
+#                                                         dt, ndrange=myMPAS_O.nEdges)
+#     wait(myMPAS_O.device, stepNormalVelocityEvent)
+
+#     stepSSHEvent            = stepSSHKernel!(myMPAS_O.sshNew,
+#                                              myMPAS_O.sshCurrent,
+#                                              myMPAS_O.normalVelocityNew,
+#                                              myMPAS_O.bottomDepth,
+#                                              myMPAS_O.nEdgesOnCell,
+#                                              myMPAS_O.edgesOnCell,
+#                                              myMPAS_O.cellsOnCell,
+#                                              myMPAS_O.areaCell,
+#                                              myMPAS_O.edgeSignOnCell,
+#                                              myMPAS_O.dvEdge,
+#                                              dt, ndrange=myMPAS_O.nCells)
+#     wait(myMPAS_O.device, stepSSHEvent)
+# end

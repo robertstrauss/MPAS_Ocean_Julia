@@ -1,11 +1,12 @@
 ## Function for displaying the sea surface height (or other cell-defined variable) on the mesh
 # this is not trivial like it is when the grid is a uniform quad, where a simple imshow will work.
 using PyCall
+using PyPlot
 
 mplpatches      = pyimport("matplotlib.patches")
 mplcollections  = pyimport("matplotlib.collections")
 
-function heatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto")
+function heatMapMesh(mpasOcean, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto")
     if fig == "new"
         fig = figure()
     end
@@ -28,9 +29,9 @@ function heatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seism
 
 
     xMin = 0.0
-    xMax = myMPAS_O.lX + myMPAS_O.gridSpacingMagnitude/2.0
+    xMax = mpasOcean.lX + mpasOcean.gridSpacingMagnitude/2.0
     yMin = 0.0
-    yMax = myMPAS_O.lY + myMPAS_O.gridSpacingMagnitude/(2.0*sqrt(3.0))
+    yMax = mpasOcean.lY + mpasOcean.gridSpacingMagnitude/(2.0*sqrt(3.0))
     ax.axis([xMin,xMax,yMin,yMax])
 
     aspect_ratio = (xMax - xMin)/(yMax - yMin)
@@ -38,30 +39,30 @@ function heatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seism
 
     patches = []
     ComparisonTolerance = 10.0^(-10.0)
-    for iCell in 1:myMPAS_O.nCells
-        xCell = myMPAS_O.xCell[iCell]
-        yCell = myMPAS_O.yCell[iCell]
-        nVertices = myMPAS_O.nEdgesOnCell[iCell]
-        vertexIndices = myMPAS_O.verticesOnCell[:,iCell]
+    for iCell in 1:mpasOcean.nCells
+        xCell = mpasOcean.xCell[iCell]
+        yCell = mpasOcean.yCell[iCell]
+        nVertices = mpasOcean.nEdgesOnCell[iCell]
+        vertexIndices = mpasOcean.verticesOnCell[:,iCell]
         vertices = zeros(Float64, (nVertices, 2))
         for iVertexOnCell in 1:nVertices
-            xVertex = myMPAS_O.xVertex[vertexIndices[iVertexOnCell]]
-            yVertex = myMPAS_O.yVertex[vertexIndices[iVertexOnCell]]
+            xVertex = mpasOcean.xVertex[vertexIndices[iVertexOnCell]]
+            yVertex = mpasOcean.yVertex[vertexIndices[iVertexOnCell]]
 
             # edge cases
-            if abs(yVertex - yCell) > (2.0/sqrt(3.0))*myMPAS_O.gridSpacingMagnitude && yVertex < yCell
-                yVertex = yCell + myMPAS_O.gridSpacingMagnitude/sqrt(3.0)
+            if abs(yVertex - yCell) > (2.0/sqrt(3.0))*mpasOcean.gridSpacingMagnitude && yVertex < yCell
+                yVertex = yCell + mpasOcean.gridSpacingMagnitude/sqrt(3.0)
             end
-            if abs(yVertex - yCell) > (2.0/sqrt(3.0))*myMPAS_O.gridSpacingMagnitude && yVertex > yCell
-                yVertex = yCell - myMPAS_O.gridSpacingMagnitude/sqrt(3.0)
+            if abs(yVertex - yCell) > (2.0/sqrt(3.0))*mpasOcean.gridSpacingMagnitude && yVertex > yCell
+                yVertex = yCell - mpasOcean.gridSpacingMagnitude/sqrt(3.0)
             end
-            if abs(xVertex - xCell) > myMPAS_O.gridSpacingMagnitude && xVertex < xCell
-                if abs(yVertex - (yCell + myMPAS_O.gridSpacingMagnitude/sqrt(3.0))) < ComparisonTolerance
+            if abs(xVertex - xCell) > mpasOcean.gridSpacingMagnitude && xVertex < xCell
+                if abs(yVertex - (yCell + mpasOcean.gridSpacingMagnitude/sqrt(3.0))) < ComparisonTolerance
                     xVertex = xCell
-                elseif abs(yVertex - (yCell - myMPAS_O.gridSpacingMagnitude/sqrt(3.0))) < ComparisonTolerance
+                elseif abs(yVertex - (yCell - mpasOcean.gridSpacingMagnitude/sqrt(3.0))) < ComparisonTolerance
                     xVertex = xCell
                 else
-                    xVertex = xCell + 0.5*myMPAS_O.gridSpacingMagnitude
+                    xVertex = xCell + 0.5*mpasOcean.gridSpacingMagnitude
                 end
             end
 
@@ -88,7 +89,7 @@ end
 
 
 
-function edgeHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linewidth=1)
+function edgeHeatMapMesh(mpasOcean, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linewidth=1)
     if fig == "new"
         fig = figure()
     end
@@ -110,9 +111,9 @@ function edgeHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="s
     end
 
     xMin = 0.0
-    xMax = myMPAS_O.lX + myMPAS_O.gridSpacingMagnitude/2.0
+    xMax = mpasOcean.lX + mpasOcean.gridSpacingMagnitude/2.0
     yMin = 0.0
-    yMax = myMPAS_O.lY + myMPAS_O.gridSpacingMagnitude/(2.0*sqrt(3.0))
+    yMax = mpasOcean.lY + mpasOcean.gridSpacingMagnitude/(2.0*sqrt(3.0))
     ax.axis([xMin,xMax,yMin,yMax])
 
     aspect_ratio = (xMax - xMin)/(yMax - yMin)
@@ -121,21 +122,21 @@ function edgeHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="s
 
     patches = []
 
-    for iEdge in 1:myMPAS_O.nEdges
+    for iEdge in 1:mpasOcean.nEdges
 
-        vertexIndices = myMPAS_O.verticesOnEdge[:,iEdge]
+        vertexIndices = mpasOcean.verticesOnEdge[:,iEdge]
 
         vertices = [
-            myMPAS_O.xVertex[vertexIndices[1]]   myMPAS_O.yVertex[vertexIndices[1]];
-            myMPAS_O.xVertex[vertexIndices[2]]   myMPAS_O.yVertex[vertexIndices[2]]
+            mpasOcean.xVertex[vertexIndices[1]]   mpasOcean.yVertex[vertexIndices[1]];
+            mpasOcean.xVertex[vertexIndices[2]]   mpasOcean.yVertex[vertexIndices[2]]
         ]
 
         # edge cases
-        if abs(vertices[1,1] - vertices[2,1]) > 1.01*myMPAS_O.gridSpacingMagnitude
-            vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * myMPAS_O.gridSpacingMagnitude * sqrt(3)/4
+        if abs(vertices[1,1] - vertices[2,1]) > 1.01*mpasOcean.gridSpacingMagnitude
+            vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * mpasOcean.gridSpacingMagnitude * sqrt(3)/4
         end
-        if abs(vertices[1,2] - vertices[2,2]) > 1.01*myMPAS_O.gridSpacingMagnitude
-            vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * myMPAS_O.gridSpacingMagnitude / (2*sqrt(3))
+        if abs(vertices[1,2] - vertices[2,2]) > 1.01*mpasOcean.gridSpacingMagnitude
+            vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * mpasOcean.gridSpacingMagnitude / (2*sqrt(3))
         end
 
         edgepatch = mplpatches.Polygon(vertices, closed=false, edgecolor=m.to_rgba(phi[iEdge]), linewidth=linewidth)
@@ -157,7 +158,7 @@ end
 
 
 
-function signedEdgeHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linewidth=1, nudge=0.2)
+function signedEdgeHeatMapMesh(mpasOcean, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linewidth=1, nudge=0.2)
     if fig == "new"
         fig = figure()
     end
@@ -179,9 +180,9 @@ function signedEdgeHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", c
     end
 
     xMin = 0.0
-    xMax = myMPAS_O.lX + myMPAS_O.gridSpacingMagnitude/2.0
+    xMax = mpasOcean.lX + mpasOcean.gridSpacingMagnitude/2.0
     yMin = 0.0
-    yMax = myMPAS_O.lY + myMPAS_O.gridSpacingMagnitude/(2.0*sqrt(3.0))
+    yMax = mpasOcean.lY + mpasOcean.gridSpacingMagnitude/(2.0*sqrt(3.0))
     ax.axis([xMin,xMax,yMin,yMax])
 
     aspect_ratio = (xMax - xMin)/(yMax - yMin)
@@ -190,32 +191,32 @@ function signedEdgeHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", c
 
     patches = []
 
-    for iCell in 1:myMPAS_O.nCells
-        for i in 1:myMPAS_O.nEdgesOnCell[iCell]
-            iEdge = myMPAS_O.edgesOnCell[i, iCell]
+    for iCell in 1:mpasOcean.nCells
+        for i in 1:mpasOcean.nEdgesOnCell[iCell]
+            iEdge = mpasOcean.edgesOnCell[i, iCell]
 
-            vertexIndices = myMPAS_O.verticesOnEdge[:,iEdge]
+            vertexIndices = mpasOcean.verticesOnEdge[:,iEdge]
 
             vertices = [
-                myMPAS_O.xVertex[vertexIndices[1]]   myMPAS_O.yVertex[vertexIndices[1]];
-                myMPAS_O.xVertex[vertexIndices[2]]   myMPAS_O.yVertex[vertexIndices[2]]
+                mpasOcean.xVertex[vertexIndices[1]]   mpasOcean.yVertex[vertexIndices[1]];
+                mpasOcean.xVertex[vertexIndices[2]]   mpasOcean.yVertex[vertexIndices[2]]
             ]
 
 
             vertices[:,1] .*= 1.0 - nudge
-            vertices[:,1] .+= myMPAS_O.xCell[iCell]*nudge
+            vertices[:,1] .+= mpasOcean.xCell[iCell]*nudge
             vertices[:,2] .*= 1.0 - nudge
-            vertices[:,2] .+= myMPAS_O.yCell[iCell]*nudge
+            vertices[:,2] .+= mpasOcean.yCell[iCell]*nudge
 
             # edge cases
-            if abs(vertices[1,1] - vertices[2,1]) > 1.01*myMPAS_O.gridSpacingMagnitude
-                vertices[1,:] .= vertices[2,:] #- sign(vertices[1,1] - vertices[2,1]) * myMPAS_O.gridSpacingMagnitude * sqrt(3)/4
+            if abs(vertices[1,1] - vertices[2,1]) > 1.01*mpasOcean.gridSpacingMagnitude
+                vertices[1,:] .= vertices[2,:] #- sign(vertices[1,1] - vertices[2,1]) * mpasOcean.gridSpacingMagnitude * sqrt(3)/4
             end
-            if abs(vertices[1,2] - vertices[2,2]) > 1.01*myMPAS_O.gridSpacingMagnitude
-                vertices[2,:] .= vertices[1,:] #+ sign(vertices[1,2] - vertices[2,2]) * myMPAS_O.gridSpacingMagnitude / (2*sqrt(3))
+            if abs(vertices[1,2] - vertices[2,2]) > 1.01*mpasOcean.gridSpacingMagnitude
+                vertices[2,:] .= vertices[1,:] #+ sign(vertices[1,2] - vertices[2,2]) * mpasOcean.gridSpacingMagnitude / (2*sqrt(3))
             end
 
-            edgepatch = mplpatches.Polygon(vertices, closed=false, edgecolor=m.to_rgba(phi[iEdge]*myMPAS_O.edgeSignOnCell[iCell, i]), linewidth=linewidth)
+            edgepatch = mplpatches.Polygon(vertices, closed=false, edgecolor=m.to_rgba(phi[iEdge]*mpasOcean.edgeSignOnCell[iCell, i]), linewidth=linewidth)
             append!(patches, [edgepatch])
         end
     end
@@ -239,7 +240,7 @@ end
 
 
 
-function vectorPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linewidth=1)
+function vectorPlotMesh(mpasOcean, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linewidth=1)
     if fig == "new"
         fig = figure()
     end
@@ -261,9 +262,9 @@ function vectorPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="se
     end
 
     xMin = 0.0
-    xMax = myMPAS_O.lX + myMPAS_O.gridSpacingMagnitude/2.0
+    xMax = mpasOcean.lX + mpasOcean.gridSpacingMagnitude/2.0
     yMin = 0.0
-    yMax = myMPAS_O.lY + myMPAS_O.gridSpacingMagnitude/(2.0*sqrt(3.0))
+    yMax = mpasOcean.lY + mpasOcean.gridSpacingMagnitude/(2.0*sqrt(3.0))
     ax.axis([xMin,xMax,yMin,yMax])
 
     aspect_ratio = (xMax - xMin)/(yMax - yMin)
@@ -271,21 +272,21 @@ function vectorPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="se
 
     patches = []
 
-    for iEdge in 1:myMPAS_O.nEdges
+    for iEdge in 1:mpasOcean.nEdges
 
-        vertexIndices = myMPAS_O.verticesOnEdge[:,iEdge]
+        vertexIndices = mpasOcean.verticesOnEdge[:,iEdge]
 
         vertices = [
-            myMPAS_O.xVertex[vertexIndices[1]]   myMPAS_O.yVertex[vertexIndices[1]];
-            myMPAS_O.xVertex[vertexIndices[2]]   myMPAS_O.yVertex[vertexIndices[2]]
+            mpasOcean.xVertex[vertexIndices[1]]   mpasOcean.yVertex[vertexIndices[1]];
+            mpasOcean.xVertex[vertexIndices[2]]   mpasOcean.yVertex[vertexIndices[2]]
         ]
 
         # edge cases
-        if abs(vertices[1,1] - vertices[2,1]) > 1.01*myMPAS_O.gridSpacingMagnitude
-            vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * myMPAS_O.gridSpacingMagnitude * sqrt(3)/4
+        if abs(vertices[1,1] - vertices[2,1]) > 1.01*mpasOcean.gridSpacingMagnitude
+            vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * mpasOcean.gridSpacingMagnitude * sqrt(3)/4
         end
-        if abs(vertices[1,2] - vertices[2,2]) > 1.01*myMPAS_O.gridSpacingMagnitude
-            vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * myMPAS_O.gridSpacingMagnitude / (2*sqrt(3))
+        if abs(vertices[1,2] - vertices[2,2]) > 1.01*mpasOcean.gridSpacingMagnitude
+            vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * mpasOcean.gridSpacingMagnitude / (2*sqrt(3))
         end
 
         edgepatch = mplpatches.Polygon(vertices, closed=false, edgecolor="k", linewidth=0.5)
@@ -297,7 +298,7 @@ function vectorPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="se
 
     ax.add_collection(localPatches)
 
-    ax.quiver(myMPAS_O.xEdge, myMPAS_O.yEdge, phi.*cos.(myMPAS_O.angleEdge), phi.*sin.(myMPAS_O.angleEdge))
+    ax.quiver(mpasOcean.xEdge, mpasOcean.yEdge, phi.*cos.(mpasOcean.angleEdge), phi.*sin.(mpasOcean.angleEdge))
 
     close()
     return fig, ax, cbar#, localPatches
@@ -310,7 +311,7 @@ end
 
 
 
-function vectorStreamPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linecolor="k", linewidth=1.0, density=2.0, xbins=15, ybins=15)
+function vectorStreamPlotMesh(mpasOcean, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", linecolor="k", linewidth=1.0, density=2.0, xbins=15, ybins=15)
     if fig == "new"
         fig = figure()
     end
@@ -332,9 +333,9 @@ function vectorStreamPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cm
     end
 
     xMin = 0.0
-    xMax = myMPAS_O.lX + myMPAS_O.gridSpacingMagnitude/2.0
+    xMax = mpasOcean.lX + mpasOcean.gridSpacingMagnitude/2.0
     yMin = 0.0
-    yMax = myMPAS_O.lY + myMPAS_O.gridSpacingMagnitude/(2.0*sqrt(3.0))
+    yMax = mpasOcean.lY + mpasOcean.gridSpacingMagnitude/(2.0*sqrt(3.0))
     ax.axis([xMin,xMax,yMin,yMax])
 
     aspect_ratio = (xMax - xMin)/(yMax - yMin)
@@ -342,21 +343,21 @@ function vectorStreamPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cm
 
 #     patches = []
 
-#     for iEdge in 1:myMPAS_O.nEdges
+#     for iEdge in 1:mpasOcean.nEdges
 
-#         vertexIndices = myMPAS_O.verticesOnEdge[:,iEdge]
+#         vertexIndices = mpasOcean.verticesOnEdge[:,iEdge]
 
 #         vertices = [
-#             myMPAS_O.xVertex[vertexIndices[1]]   myMPAS_O.yVertex[vertexIndices[1]];
-#             myMPAS_O.xVertex[vertexIndices[2]]   myMPAS_O.yVertex[vertexIndices[2]]
+#             mpasOcean.xVertex[vertexIndices[1]]   mpasOcean.yVertex[vertexIndices[1]];
+#             mpasOcean.xVertex[vertexIndices[2]]   mpasOcean.yVertex[vertexIndices[2]]
 #         ]
 
 #         # edge cases
-#         if abs(vertices[1,1] - vertices[2,1]) > 1.01*myMPAS_O.gridSpacingMagnitude
-#             vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * myMPAS_O.gridSpacingMagnitude * sqrt(3)/4
+#         if abs(vertices[1,1] - vertices[2,1]) > 1.01*mpasOcean.gridSpacingMagnitude
+#             vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * mpasOcean.gridSpacingMagnitude * sqrt(3)/4
 #         end
-#         if abs(vertices[1,2] - vertices[2,2]) > 1.01*myMPAS_O.gridSpacingMagnitude
-#             vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * myMPAS_O.gridSpacingMagnitude / (2*sqrt(3))
+#         if abs(vertices[1,2] - vertices[2,2]) > 1.01*mpasOcean.gridSpacingMagnitude
+#             vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * mpasOcean.gridSpacingMagnitude / (2*sqrt(3))
 #         end
 
 #         edgepatch = mplpatches.Polygon(vertices, closed=false, edgecolor="k", linewidth=0.5)
@@ -369,18 +370,18 @@ function vectorStreamPlotMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cm
 #     ax.add_collection(localPatches)
 
 
-    X = collect(range(0, myMPAS_O.lX, length=xbins))
-    Y = collect(range(0, myMPAS_O.lY, length=ybins))
+    X = collect(range(0, mpasOcean.lX, length=xbins))
+    Y = collect(range(0, mpasOcean.lY, length=ybins))
 
     phiXUniformBinned = zeros(Float64, length(Y), length(X))
     phiYUniformBinned = zeros(Float64, length(Y), length(X))
 
-    for iEdge = 1:myMPAS_O.nEdges
-        iBin = argmin(abs.(X .- myMPAS_O.xEdge[iEdge]))
-        jBin = argmin(abs.(Y .- myMPAS_O.yEdge[iEdge]))
+    for iEdge = 1:mpasOcean.nEdges
+        iBin = argmin(abs.(X .- mpasOcean.xEdge[iEdge]))
+        jBin = argmin(abs.(Y .- mpasOcean.yEdge[iEdge]))
 
-        phiXUniformBinned[jBin, iBin] += phi[iEdge] * cos(myMPAS_O.angleEdge[iEdge])
-        phiYUniformBinned[jBin, iBin] += phi[iEdge] * sin(myMPAS_O.angleEdge[iEdge])
+        phiXUniformBinned[jBin, iBin] += phi[iEdge] * cos(mpasOcean.angleEdge[iEdge])
+        phiYUniformBinned[jBin, iBin] += phi[iEdge] * sin(mpasOcean.angleEdge[iEdge])
     end
 
     ax.streamplot(X, Y, phiXUniformBinned, phiYUniformBinned, color=linecolor, density=density, linewidth=linewidth)
@@ -395,7 +396,7 @@ end
 
 
 
-function vertexHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", dotsize=3)
+function vertexHeatMapMesh(mpasOcean, phi; fig="new", ax="new", cbar="new", cmap="seismic", cMin="auto", cMax="auto", dotsize=3)
     if fig == "new"
         fig = figure()
     end
@@ -417,9 +418,9 @@ function vertexHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap=
     end
 
     xMin = 0.0
-    xMax = myMPAS_O.lX + myMPAS_O.gridSpacingMagnitude/2.0
+    xMax = mpasOcean.lX + mpasOcean.gridSpacingMagnitude/2.0
     yMin = 0.0
-    yMax = myMPAS_O.lY + myMPAS_O.gridSpacingMagnitude/(2.0*sqrt(3.0))
+    yMax = mpasOcean.lY + mpasOcean.gridSpacingMagnitude/(2.0*sqrt(3.0))
     ax.axis([xMin,xMax,yMin,yMax])
 
     aspect_ratio = (xMax - xMin)/(yMax - yMin)
@@ -428,21 +429,21 @@ function vertexHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap=
 
     patches = []
 
-    for iEdge in 1:myMPAS_O.nEdges
+    for iEdge in 1:mpasOcean.nEdges
 
-        vertexIndices = myMPAS_O.verticesOnEdge[:,iEdge]
+        vertexIndices = mpasOcean.verticesOnEdge[:,iEdge]
 
         vertices = [
-            myMPAS_O.xVertex[vertexIndices[1]]   myMPAS_O.yVertex[vertexIndices[1]];
-            myMPAS_O.xVertex[vertexIndices[2]]   myMPAS_O.yVertex[vertexIndices[2]]
+            mpasOcean.xVertex[vertexIndices[1]]   mpasOcean.yVertex[vertexIndices[1]];
+            mpasOcean.xVertex[vertexIndices[2]]   mpasOcean.yVertex[vertexIndices[2]]
         ]
 
         # edge cases
-        if abs(vertices[1,1] - vertices[2,1]) > 1.01*myMPAS_O.gridSpacingMagnitude
-            vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * myMPAS_O.gridSpacingMagnitude * sqrt(3)/4
+        if abs(vertices[1,1] - vertices[2,1]) > 1.01*mpasOcean.gridSpacingMagnitude
+            vertices[1,1] = vertices[2,1] - sign(vertices[1,1] - vertices[2,1]) * mpasOcean.gridSpacingMagnitude * sqrt(3)/4
         end
-        if abs(vertices[1,2] - vertices[2,2]) > 1.01*myMPAS_O.gridSpacingMagnitude
-            vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * myMPAS_O.gridSpacingMagnitude / (2*sqrt(3))
+        if abs(vertices[1,2] - vertices[2,2]) > 1.01*mpasOcean.gridSpacingMagnitude
+            vertices[2,2] = vertices[1,2] + sign(vertices[1,2] - vertices[2,2]) * mpasOcean.gridSpacingMagnitude / (2*sqrt(3))
         end
 
         edgepatch = mplpatches.Polygon(vertices, closed=false, edgecolor="k", linewidth=0.5)
@@ -454,7 +455,7 @@ function vertexHeatMapMesh(myMPAS_O, phi; fig="new", ax="new", cbar="new", cmap=
 
     ax.add_collection(localPatches)
 
-    ax.scatter(myMPAS_O.xVertex, myMPAS_O.yVertex, s=dotsize, c=phi, cmap=cmap)
+    ax.scatter(mpasOcean.xVertex, mpasOcean.yVertex, s=dotsize, c=phi, cmap=cmap)
 
     close()
     return fig, ax, cbar, localPatches

@@ -20,7 +20,7 @@ GPU() = CUDAKernels.CUDADevice()
 
 CODE_ROOT = pwd() * "/"
 
-include(CODE_ROOT * "mode_init.jl")
+include(CODE_ROOT * "mode_init/MPAS_Ocean.jl")
 
 include(CODE_ROOT * "visualization.jl")
 

@@ -1,6 +1,6 @@
 import CUDA
 
-include("../mode_init/mode_init.jl")
+include("../mode_init/MPAS_Ocean.jl")
 
 ### CPU tendency calculation
 

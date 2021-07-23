@@ -1,5 +1,5 @@
-include("mode_forward.jl")
-include("mode_init.jl")
+include("mode_forward/time_steppers.jl")
+include("mode_init/MPAS_Ocean.jl")
 include("visualization.jl")
 
 using PyPlot

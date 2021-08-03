@@ -5,28 +5,35 @@ import CUDA
 # include("Namelist.jl")
 include("fixAngleEdge.jl")
 include("BoundaryCondition.jl")
-
+include("MPAS_Ocean.jl")
 
 mutable struct MPAS_OceanHalos
     
-    fullOcean::MPAS_Ocean
+    # fullOcean::MPAS_Ocean
     
     haloChunks::Array{MPAS_Ocean}
     
-    cellsWithinHalo::AbstractArray
-    cellsOfHalo::AbstractArray
+    # cellsWithinHalo::AbstractArray
+    # cellsOfHalo::AbstractArray
     
-    localCellsWithinHalo::AbstractArray
-    localCellsOfHalo::AbstractArray
+    # localCellsWithinHalo::AbstractArray
+    # localCellsOfHalo::AbstractArray
+    
+    cellsToRank::Array
+    cellsFromRank::Array
 
+    edgesToRank::Array
+    edgesFromRank::Array
     
     # load state from file
     function MPAS_OceanHalos(mpasOcean, haloWidth, nXChunks, nYChunks)
-       mpasOceanHalos = new(mpasOcean, [], [], [])
+       mpasOceanHalos = new([], [], [], [], [])
         
         # divide up cells of mpasOcean into rectangular grid
         
         chunkCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
+        mpasOceanHalos.cellsFromRank = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
+        mpasOceanHalos.cellsToRank = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
         
         chunkWidth = mpasOcean.lX/nXChunks
         chunkHeight = mpasOcean.lY/nYChunks
@@ -38,14 +45,18 @@ mutable struct MPAS_OceanHalos
         
         # make sub ocean objects
         
-        for chunk in chunkCells
-            append!(mpasOceanHalos.cellsWithinHalo, [chunk])
+        for (i, chunk) in enumerate(chunkCells)
             halo = grow_halo(mpasOcean, chunk, haloWidth)
-            append!(mpasOceanHalos.cellsOfHalo, [halo])
-            
+
             cells    = union(chunk, halo)
-            edges    = Set(mpasOceanHalos.fullOcean.edgesOnCell[cells])
-            vertices = Set(mpasOceanHalos.fullOcean.verticesOnCell[cells])
+            edges    = Set(mpasOcean.edgesOnCell[cells])
+            vertices = Set(mpasOcean.verticesOnCell[cells])
+
+	    for (j, otherchunk) in enumerate(chunkCells)
+		mpasOceanHalos.cellsFromRank[i,j] = findall(iCell -> iCell in otherchunk, cells)
+		mpasOceanHalos.cellsToRank[j,i]   = findall(iCell -> iCell in halo, otherchunk)
+	    end
+
             
             append!(mpasOceanHalos.haloChunks, [mpas_subset(mpasOcean, cells, edges, vertices)])
         end
@@ -54,25 +65,56 @@ mutable struct MPAS_OceanHalos
     end
 end
 
-    
+function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks; iChunk="all")
+	cellsInChunk = []
+	edgesInChunk = []
+	verticesInChunk = []
 
-function collectChunks(mpasOceanHalos::MPAS_OceanHalos)
-    for (iChunk, mpasOcean) in enumerate(mpasOceanHalos.haloChunks)
-	for field in [:sshCurrent, :sshTendency, :normalVelocityCurrent, :normalVelocityTendency]
-	    getfield(mpasOceanHalos.fullOcean, field)[mpasOceanHalos.cellsWithinHalo[iChunk]] = getfield(mpasOcean, field)[mpasOceanHalos.localCellsWithinHalo[iChunk]]
+        chunkCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
+	if iChunk == "all"
+		cellsFromChunk = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
+		cellsToChunk = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
+	else
+		cellsFromChunk = collect([ [] for i in 1:1, j in 1:length(chunkCells)])
+		cellsToChunk = collect([ [] for i in 1:length(chunkCells), j in 1:1])
 	end
-    end
-    return
+        
+        chunkWidth = mpasOcean.lX/nXChunks
+        chunkHeight = mpasOcean.lY/nYChunks
+        
+        for iCell in 1:mpasOcean.nCells
+            append!(chunkCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
+                               Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
+        end
+        
+        # put halo borders around chunks
+        
+        for (i, chunk) in (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
+            halo = grow_halo(mpasOcean, chunk, haloWidth)
+
+            cells    = union(chunk, halo)
+            edges    = Set(mpasOcean.edgesOnCell[cells])
+            vertices = Set(mpasOcean.verticesOnCell[cells])
+
+	    for (j, otherchunk) in enumerate(chunkCells)
+		cellsFromChunk[i,j] = findall(iCell -> iCell in otherchunk, cells)
+		cellsToChunk[j,i]   = findall(iCell -> iCell in halo, otherchunk)
+	    end
+
+	    append!(cellsInChunk, [cells])
+	    append!(edgesInChunk, [edges])
+	    append!(verticesInChunk, [vertices])
+	    
+        end
+        
+	if iChunk != "all"
+		cellsFromChunk = dropdims(cellsFromChunk, dims=1)
+		cellsToChunk = dropdims(cellsToChunk, dims=2)
+	end
+
+	return cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk
 end
 
-function fillHalos(mpasOceanHalos::MPAS_OceanHalos)
-    for (iChunk, mpasOcean) in enumerate(mpasOceanHalos.haloChunks)
-	for field in [:sshCurrent, :sshTendency, :normalVelocityCurrent, :normalVelocityTendency]
-	    getfield(mpasOcean, field)[mpasOceanHalos.localCellsOfHalo[iChunk]] = getfield(mpasOceanHalos.fullOcean, field)[mpasOceanHalos.cellsOfHalo[iChunk]]
-	end
-    end
-    return
-end
 
 #         function make_region(startCell)
 #             # grow region out from start cell
@@ -130,18 +172,21 @@ end
 
 function grow_halo(mpasOcean, cells, radius)
     # grow halo from edge of region
-    outerCells = []
+    outerCells = [cells...]
     newCells = []
+    haloCells = []
 
     for i in 1:radius
         for iCell in outerCells
             for jCell in mpasOcean.cellsOnCell[iCell]
-                if !jCell in outerCells && !jCell in cells && !jCell in haloCells
+                if ! (jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells)
                     append!(newCells, jCell)
-                end
+		end
             end
         end
-        append!(haloCells, outerCells)
+        if i > 1
+		append!(haloCells, outerCells)
+	end
         outerCells = newCells
         newCells = []
     end

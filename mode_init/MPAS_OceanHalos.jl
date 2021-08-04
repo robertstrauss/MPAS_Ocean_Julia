@@ -98,8 +98,8 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	    chunkHalos[i] = halo
 
             cells    = union(chunk, halo)
-            edges    = Set(mpasOcean.edgesOnCell[cells])
-            vertices = Set(mpasOcean.verticesOnCell[cells])
+            edges    = Set(mpasOcean.edgesOnCell[:,cells])
+            vertices = Set(mpasOcean.verticesOnCell[:,cells])
 
 
 	    append!(cellsInChunk, [cells])
@@ -109,12 +109,14 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
         end
          
         for (i, chunk) in enumerate(chunkCells) # (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
+	    cells = union(chunk, chunkHalos[i])
 	    for (j, otherchunk) in enumerate(chunkCells)
 	    	# if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
-		append!(cellsFromChunk[i], (j, findall(iCell -> iCell in otherchunk, cells)))
+		append!(cellsFromChunk[i], [(j, findall(iCell -> iCell in otherchunk, cells))])
+	    end
 	    for (j, otherhalo) in enumerate(chunkHalos)
 	    	# if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
-		append!(cellsToChunk[i],   (j, findall(iCell -> iCell in otherhalo, chunk)))
+		append!(cellsToChunk[i],   [(j, findall(iCell -> iCell in otherhalo, chunk))])
 	    end
 	end
 
@@ -211,7 +213,6 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :sshCurrent,
         :sshTendency,
         :bottomDepth,
-        :edgeSignOnCell,
         :latCell,
         :lonCell,
         :xCell,
@@ -221,13 +222,21 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :maxLevelCell,
         :gridSpacing,
         :boundaryCell,
+        :nEdgesOnCell,
     ]
-    cellCenteredIndexFields = [
+    cell2dFields = [
         :cellsOnCell,
         :edgesOnCell,
         :verticesOnCell,
-        :kiteIndexOnCell,
-        :nEdgesOnCell,
+    ]
+    cell2djiFields = [
+	:edgeSignOnCell,
+        # :kiteIndexOnCell,
+    ]
+    cellIndexFields = [
+	:cellsOnCell,
+	:cellsOnEdge,
+	:cellsOnVertex
     ]
 
     edgeCenteredFields = [
@@ -240,17 +249,22 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :dcEdge,
         :fEdge,
         :angleEdge,
-        :weightsOnEdge,
         :maxLevelEdgeTop,
         :maxLevelEdgeBot,
         :boundaryEdge,
         :edgeMask,
+        :nEdgesOnEdge,
     ]
-    edgeCenteredIndexFields = [
+    edge2dFields = [
         :cellsOnEdge,
         :edgesOnEdge,
         :verticesOnEdge,
-        :nEdgesOnEdge,
+	:weightsOnEdge,
+    ]
+    edgeIndexFields = [
+	:edgesOnCell,
+	:edgesOnEdge,
+	:edgesOnVertex,
     ]
     
     vertexCenteredFields = [
@@ -260,17 +274,23 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :xVertex,
         :yVertex,
         # :vertexDegree,
-        :edgeSignOnVertex,
         :fVertex,
         :areaTriangle,
-        :kiteAreasOnVertex,
+        # :kiteAreasOnVertex,
         :maxLevelVertexTop,
         :maxLevelVertexBot,
         :boundaryVertex,
     ]
-    vertexCenteredIndexFields = [
+    vertex2dFields = [
         :cellsOnVertex,
         :edgesOnVertex,
+    ]
+    vertex2djiFields = [
+	:edgeSignOnVertex,
+    ]
+    vertexIndexFields = [
+	:verticesOnCell,
+	:verticesOnEdge,
     ]
 
     function indexMap(iGlobal, indices)
@@ -280,28 +300,45 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 	end
 	return iLocals[1]
     end
+    
+    ## take subsection of given cells, and map index fields to new local indices
 
     for field in cellCenteredFields
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(cells)])
     end
-    for field in cellCenteredIndexFields
-	setfield!(mpasSubOcean, field, map(i -> indexMap(i, collect(cells)), getfield(mpasSubOcean, field)))
+    for field in cell2dFields
+	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(cells)])
+    end
+    for field in cell2djiFields
+	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(cells),:])
+    end
+    for field in cellIndexFields
+	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(cells)), getfield(mpasSubOcean, field)))
     end
     mpasSubOcean.nCells = length(cells)
-    
+ 
     for field in edgeCenteredFields
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges)])
     end
-    for field in edgeCenteredIndexFields
-	setfield!(mpasSubOcean, field, map(i -> indexMap(i, collect(edges)), getfield(mpasSubOcean, field)))
+    for field in edge2dFields
+	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(edges)])
+    end
+    for field in edgeIndexFields
+	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(edges)), getfield(mpasSubOcean, field)))
     end
     mpasSubOcean.nEdges = length(edges)
 
     for field in vertexCenteredFields
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(vertices)])
     end
-    for field in vertexCenteredIndexFields
-	setfield!(mpasSubOcean, field, map(i -> indexMap(i, collect(vertices)), getfield(mpasSubOcean, field)))
+    for field in vertex2dFields
+	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(vertices)])
+    end
+    for field in vertex2djiFields
+	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(vertices),:])
+    end
+    for field in vertexIndexFields
+	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(vertices)), getfield(mpasSubOcean, field)))
     end
     mpasSubOcean.nVertices = length(vertices)
 

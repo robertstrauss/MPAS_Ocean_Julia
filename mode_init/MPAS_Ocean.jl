@@ -422,6 +422,9 @@ function ocn_init_routines_compute_max_level!(mpasOcean)
             end
         elseif ! ( iCell1 == 0 || iCell2 == 0 )
             mpasOcean.maxLevelEdgeTop[iEdge] = min(mpasOcean.maxLevelCell[iCell1], mpasOcean.maxLevelCell[iCell2])
+    for field in vertex2dFields
+	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(vertices)])
+    end
             mpasOcean.maxLevelEdgeBot[iEdge] = max(mpasOcean.maxLevelCell[iCell1], mpasOcean.maxLevelCell[iCell2])
         end
     end

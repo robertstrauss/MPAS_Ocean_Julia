@@ -33,7 +33,7 @@ println("ocean distributed between ranks.")
 
 include("mode_init/initial_conditions.jl")
 
-guassianInit!(myOcean)
+gaussianInit!(myOcean)
 
 MPI.Barrier(comm)
 
@@ -44,6 +44,8 @@ println("initial condition set.")
 include("mode_forward/time_steppers.jl")
 
 nFrames = 10
+
+mpasOcean = myOcean
 
 sshOverTime = zeros(mpasOcean.nCells, nFrames)
 
@@ -58,12 +60,12 @@ for f in 1:nFrames
 	halobuffernv = [] # temporarily stores new halo normal velocity
 	recreqs = []
 	for (srcchunk, localcells) in cellsFromChunk[rank+1]	
-		newhalossh = Array{eltype(mpasOcean.sshCurrent}(undef, length(localcells))
+		newhalossh = Array{eltype(mpasOcean.sshCurrent)}(undef, length(localcells))
 		append!(halobufferssh, [newhalossh])
 		reqssh = MPI.Irecv!(newhalossh, srcchunk-1, 0, comm) # tag 0 for ssh
 		append!(recreqs, [reqssh])
 
-		localedges = Set(mpasOcean.edgesOnCell[localcells])
+		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells]))
 		newhalonv = Array{eltype(mpasOcean.normalVelocityCurrent)}(undef, length(localedges))
 		append!(halobuffernv, [newhalonv])
 		reqnv = MPI.Irecv!(newhalossh, srcchunk-1, 1, comm) # tag 1 for norm vel
@@ -77,16 +79,16 @@ for f in 1:nFrames
 		reqssh = MPI.Isend(mpasOcean.sshCurrent[localcells], dstchunk-1, 0, comm)
 		append!(sendreqs, [reqssh])
 		
-		localedges = Set(mpasOcean.edgesOnCell[localcells])
-		reqnv = MPI.Isend(mpasOcean.sshCurrent[localedges], dstchunk-1, 1, comm)
+		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells])) # Set to remove duplicates
+		reqnv = MPI.Isend(mpasOcean.normalVelocityCurrent[localedges], dstchunk-1, 1, comm)
 		append!(sendreqs, [reqnv])
 	end
 	
 	### copy the recieved data into the ocean's halo
-	MPI.Waitall!(recreqs + sendreqs)
-	for i, (_, localcells) in enumerate(cellsFromChunk[rank+1])
+	MPI.Waitall!([recreqs..., sendreqs...])
+	for (i, (_, localcells)) in enumerate(cellsFromChunk[rank+1])
 		mpasOcean.sshCurrent[localcells] = halobufferssh[i]
-		localedges = Set(mpasOcean.edgesOnCell[localcells])
+		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells]))
 		mpasOcean.normalVelocityCurrent[localedges] = halobuffernv[i]
 	end
 	

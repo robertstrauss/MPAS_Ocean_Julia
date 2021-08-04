@@ -11,7 +11,7 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
         # gravity term: take gradient of sshCurrent across edge
         cell1Index, cell2Index = mpasOcean.cellsOnEdge[:,iEdge]
         
-        if cell1Index !== 0 && cell2Index !== 0
+        if cell1Index != 0 && cell2Index != 0
             mpasOcean.normalVelocityTendency[iEdge] = mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
         end
         
@@ -19,7 +19,9 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
         for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
             eoe = mpasOcean.edgesOnEdge[i,iEdge]
             
-            mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
+	    if eoe != 0
+            	mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
+	    end
         end
     end
 end

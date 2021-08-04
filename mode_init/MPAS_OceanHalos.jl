@@ -65,19 +65,19 @@ mutable struct MPAS_OceanHalos
     end
 end
 
-function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks; iChunk="all")
+function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	cellsInChunk = []
 	edgesInChunk = []
 	verticesInChunk = []
 
         chunkCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
-	if iChunk == "all"
-		cellsFromChunk = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
-		cellsToChunk = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
-	else
-		cellsFromChunk = collect([ [] for i in 1:1, j in 1:length(chunkCells)])
-		cellsToChunk = collect([ [] for i in 1:length(chunkCells), j in 1:1])
-	end
+	# if iChunk == "all"
+		cellsFromChunk = collect([ [] for i in 1:length(chunkCells)])
+		cellsToChunk = collect([ [] for i in 1:length(chunkCells)])
+	# else
+		# cellsFromChunk = [[]]
+		# cellsToChunk = [[]]
+	# end
         
         chunkWidth = mpasOcean.lX/nXChunks
         chunkHeight = mpasOcean.lY/nYChunks
@@ -88,29 +88,39 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks; iChu
         end
         
         # put halo borders around chunks
-        
-        for (i, chunk) in (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
+	# if iChunk == "all"
+		chunkHalos = collect([ [] for i in 1:length(chunkCells)]) 
+	# else
+		# chunkHalos = [[]]
+	# end
+        for (i, chunk) in enumerate(chunkCells) # (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
             halo = grow_halo(mpasOcean, chunk, haloWidth)
+	    chunkHalos[i] = halo
 
             cells    = union(chunk, halo)
             edges    = Set(mpasOcean.edgesOnCell[cells])
             vertices = Set(mpasOcean.verticesOnCell[cells])
 
-	    for (j, otherchunk) in enumerate(chunkCells)
-		cellsFromChunk[i,j] = findall(iCell -> iCell in otherchunk, cells)
-		cellsToChunk[j,i]   = findall(iCell -> iCell in halo, otherchunk)
-	    end
 
 	    append!(cellsInChunk, [cells])
 	    append!(edgesInChunk, [edges])
 	    append!(verticesInChunk, [vertices])
 	    
         end
-        
-	if iChunk != "all"
-		cellsFromChunk = dropdims(cellsFromChunk, dims=1)
-		cellsToChunk = dropdims(cellsToChunk, dims=2)
+         
+        for (i, chunk) in enumerate(chunkCells) # (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
+	    for (j, otherchunk) in enumerate(chunkCells)
+	    	# if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
+		append!(cellsFromChunk[i], (j, findall(iCell -> iCell in otherchunk, cells)))
+	    for (j, otherhalo) in enumerate(chunkHalos)
+	    	# if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
+		append!(cellsToChunk[i],   (j, findall(iCell -> iCell in otherhalo, chunk)))
+	    end
 	end
+
+	# if iChunk != "all"
+		# cellsFromChunk = dropdims(cellsFromChunk, dims=1)
+	# end
 
 	return cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk
 end

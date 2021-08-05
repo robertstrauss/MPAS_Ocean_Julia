@@ -111,12 +111,16 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
         for (i, chunk) in enumerate(chunkCells) # (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
 	    cells = union(chunk, chunkHalos[i])
 	    for (j, otherchunk) in enumerate(chunkCells)
-	    	# if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
-		append!(cellsFromChunk[i], [(j, findall(iCell -> iCell in otherchunk, cells))])
+            if j != i
+                # if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
+                append!(cellsFromChunk[i], [(j, findall(iCell -> iCell in otherchunk, cells))])
+            end
 	    end
 	    for (j, otherhalo) in enumerate(chunkHalos)
-	    	# if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
-		append!(cellsToChunk[i],   [(j, findall(iCell -> iCell in otherhalo, chunk))])
+            if j != i
+                # if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
+                append!(cellsToChunk[i],   [(j, findall(iCell -> iCell in otherhalo, chunk))])
+            end
 	    end
 	end
 
@@ -190,15 +194,15 @@ function grow_halo(mpasOcean, cells, radius)
 
     for i in 1:radius
         for iCell in outerCells
-            for jCell in mpasOcean.cellsOnCell[iCell]
+            for jCell in mpasOcean.cellsOnCell[:,iCell]
                 if ! (jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells)
                     append!(newCells, jCell)
-		end
+                end
             end
         end
         if i > 1
-		append!(haloCells, outerCells)
-	end
+            append!(haloCells, outerCells)
+        end
         outerCells = newCells
         newCells = []
     end

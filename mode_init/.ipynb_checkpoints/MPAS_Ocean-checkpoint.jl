@@ -118,7 +118,7 @@ mutable struct MPAS_Ocean
         
 
 
-        
+       mpasOcean.boundaryConditions = [BoundaryCondition()]
         
         
         ### Mesh stuff
@@ -297,27 +297,35 @@ end
 
 function moveArrays!(mpasOcean::MPAS_Ocean, array_type)
     
-    for field in fieldnames(typeof(mpasOcean))
-        if typeof(getfield(mpasOcean, field)) <: AbstractArray
+    mainArrayNames = [
+        :sshTendency,
+        :sshCurrent,
+        :nEdgesOnCell,
+        :edgesOnCell,
+        :cellsOnCell,
+        :bottomDepth,
+        :areaCell,
+        :edgeSignOnCell,
+    # ]
+    
+    # mainEdgeArrayNames = [
+        :normalVelocityTendency,
+        :normalVelocityCurrent,
+        :cellsOnEdge,
+        :nEdgesOnEdge,
+        :edgesOnEdge,
+        :weightsOnEdge,
+        :fEdge,
+        :dcEdge,
+        :dvEdge,
+    ]
+    
+    for (iField, field) in enumerate(mainArrayNames)#fieldnames(typeof(mpasOcean)))
+        # if typeof(mpasOcean).types[iField] == AbstractArray
             setfield!(mpasOcean, field, array_type(getfield(mpasOcean, field)))
-        end
+        # end
     end
     
-#     for field in fieldnames(MPAS_Ocean)
-#         if typeof(field) <: AbstractArray
-#             arr = getfield(mpasOcean, field)
-
-#             devicearr = CUDA.@cuStaticSharedMem(eltype(arr), size(arr))
-
-#             CUDA.copyto!(devicearr, arr)
-
-#             if field != :sshCurrent && field != :sshTendency && field != :normalVelocityCurrent && field != :normalVelocityTendency
-#                 devicearr = CUDA.Const(devicearr)
-#             end
-
-#             setfield!(mpasOcean, field, devicearr)
-#         end
-#     end
 
     
 end

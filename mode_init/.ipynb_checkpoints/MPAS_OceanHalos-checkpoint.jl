@@ -98,8 +98,8 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	    chunkHalos[i] = halo
 
             cells    = union(chunk, halo)
-            edges    = Set(mpasOcean.edgesOnCell[:,cells])
-            vertices = Set(mpasOcean.verticesOnCell[:,cells])
+            edges    = collect(Set(mpasOcean.edgesOnCell[:,cells]))
+            vertices = collect(Set(mpasOcean.verticesOnCell[:,cells]))
 
 
 	    append!(cellsInChunk, [cells])
@@ -151,7 +151,7 @@ sizeof_main_arrays(mpasOcean::MPAS_Ocean) = sizeof_main_arrays(mpasOcean, collec
 function sizeof_main_arrays(mpasOcean::MPAS_Ocean, cells, edges)
     mainCellArrayNames = [
         :sshTendency,
-        :ssh,
+        :sshCurrent,
         :nEdgesOnCell,
         :edgesOnCell,
         :cellsOnCell,
@@ -162,7 +162,7 @@ function sizeof_main_arrays(mpasOcean::MPAS_Ocean, cells, edges)
     
     mainEdgeArrayNames = [
         :normalVelocityTendency,
-        :normalVelocity,
+        :normalVelocityCurrent,
         :cellsOnEdge,
         :nEdgesOnEdge,
         :edgesOnEdge,

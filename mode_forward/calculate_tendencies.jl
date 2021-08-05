@@ -19,15 +19,15 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
         for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
             eoe = mpasOcean.edgesOnEdge[i,iEdge]
             
-	    if eoe != 0
-            	mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
-	    end
+            if eoe != 0
+                    mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
+            end
         end
     end
 end
 
 function update_normal_velocity_by_tendency!(mpasOcean::MPAS_Ocean)
-    mpasOcean.normalVelocityCurrent .= mpasOcean.dt .* mpasOcean.normalVelocityTendency
+    mpasOcean.normalVelocityCurrent .+= mpasOcean.dt .* mpasOcean.normalVelocityTendency
 end
 
 
@@ -41,7 +41,7 @@ function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
             edgeID = mpasOcean.edgesOnCell[i,iCell]
             neighborCellID = mpasOcean.cellsOnCell[i,iCell]
             
-            if neighborCellID !== 0
+            if neighborCellID != 0
                 mean_depth = ( mpasOcean.bottomDepth[neighborCellID] + mpasOcean.bottomDepth[iCell] ) / 2.0
             else
                 mean_depth = mpasOcean.bottomDepth[iCell]
@@ -54,7 +54,7 @@ function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
 end
 
 function update_ssh_by_tendency!(mpasOcean::MPAS_Ocean)
-    mpasOcean.sshCurrent .= mpasOcean.dt .* mpasOcean.sshTendency
+    mpasOcean.sshCurrent .+= mpasOcean.dt .* mpasOcean.sshTendency
 end
 
 

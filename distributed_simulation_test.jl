@@ -47,7 +47,7 @@ nFrames = 10
 
 mpasOcean = myOcean
 
-sshOverTime = zeros(mpasOcean.nCells, nFrames)
+sshOverTime = zeros(nFrames, mpasOcean.nCells)
 
 for f in 1:nFrames
 	# simulate until the halo areas are all invalid and need to be updated
@@ -68,7 +68,7 @@ for f in 1:nFrames
 		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells]))
 		newhalonv = Array{eltype(mpasOcean.normalVelocityCurrent)}(undef, length(localedges))
 		append!(halobuffernv, [newhalonv])
-		reqnv = MPI.Irecv!(newhalossh, srcchunk-1, 1, comm) # tag 1 for norm vel
+		reqnv = MPI.Irecv!(newhalonv, srcchunk-1, 1, comm) # tag 1 for norm vel
 		append!(recreqs, [reqnv])
 	end
 	
@@ -92,7 +92,7 @@ for f in 1:nFrames
 		mpasOcean.normalVelocityCurrent[localedges] = halobuffernv[i]
 	end
 	
-	sshOverTime[f] = mpasOcean.sshCurrent
+	sshOverTime[f,:] = mpasOcean.sshCurrent
 
 	if rank == root
 		println("iteration $f of $nFrames complete")

@@ -31,28 +31,28 @@ mutable struct MPAS_OceanHalos
         
         # divide up cells of mpasOcean into rectangular grid
         
-        chunkCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
-        mpasOceanHalos.cellsFromRank = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
-        mpasOceanHalos.cellsToRank = collect([ [] for i in 1:length(chunkCells), j in 1:length(chunkCells)])
+        innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
+        mpasOceanHalos.cellsFromRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
+        mpasOceanHalos.cellsToRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
         
         chunkWidth = mpasOcean.lX/nXChunks
         chunkHeight = mpasOcean.lY/nYChunks
         
         for iCell in 1:mpasOcean.nCells
-            append!(chunkCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
+            append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
                                Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
         end
         
         # make sub ocean objects
         
-        for (i, chunk) in enumerate(chunkCells)
+        for (i, chunk) in enumerate(innerCells)
             halo = grow_halo(mpasOcean, chunk, haloWidth)
 
             cells    = union(chunk, halo)
             edges    = Set(mpasOcean.edgesOnCell[cells])
             vertices = Set(mpasOcean.verticesOnCell[cells])
 
-	    for (j, otherchunk) in enumerate(chunkCells)
+	    for (j, otherchunk) in enumerate(innerCells)
 		mpasOceanHalos.cellsFromRank[i,j] = findall(iCell -> iCell in otherchunk, cells)
 		mpasOceanHalos.cellsToRank[j,i]   = findall(iCell -> iCell in halo, otherchunk)
 	    end
@@ -70,10 +70,10 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	edgesInChunk = []
 	verticesInChunk = []
 
-        chunkCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
+        innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
 	# if iChunk == "all"
-		cellsFromChunk = collect([ [] for i in 1:length(chunkCells)])
-		cellsToChunk = collect([ [] for i in 1:length(chunkCells)])
+		cellsFromChunk = collect([ [] for i in 1:length(innerCells)])
+		cellsToChunk = collect([ [] for i in 1:length(innerCells)])
 	# else
 		# cellsFromChunk = [[]]
 		# cellsToChunk = [[]]
@@ -83,19 +83,19 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
         chunkHeight = mpasOcean.lY/nYChunks
         
         for iCell in 1:mpasOcean.nCells
-            append!(chunkCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
+            append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
                                Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
         end
         
         # put halo borders around chunks
 	# if iChunk == "all"
-		chunkHalos = collect([ [] for i in 1:length(chunkCells)]) 
+		haloCells = collect([ [] for i in 1:length(innerCells)]) 
 	# else
-		# chunkHalos = [[]]
+		# haloCells = [[]]
 	# end
-        for (i, chunk) in enumerate(chunkCells) # (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
+        for (i, chunk) in enumerate(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
             halo = grow_halo(mpasOcean, chunk, haloWidth)
-	    chunkHalos[i] = halo
+	    haloCells[i] = halo
 
             cells    = union(chunk, halo)
             edges    = collect(Set(mpasOcean.edgesOnCell[:,cells]))
@@ -108,19 +108,23 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	    
         end
          
-        for (i, chunk) in enumerate(chunkCells) # (iChunk == "all" ? enumerate(chunkCells) : [(1, chunkCells[iChunk])])
-	    cells = union(chunk, chunkHalos[i])
-	    for (j, otherchunk) in enumerate(chunkCells)
-            if j != i
-                # if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
-                append!(cellsFromChunk[i], [(j, findall(iCell -> iCell in otherchunk, cells))])
-            end
+        for (i, chunk) in enumerate(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
+	    cells = union(chunk, haloCells[i])
+	    for (j, otherchunk) in enumerate(innerCells)
+		    if j != i
+			    # if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
+		       	    localcells = findall(iCell -> iCell in otherchunk, cells)
+			    order = sortperm(cellsInChunk[i][localcells]) # sort relative to global index so local index order is consistent
+			    append!(cellsFromChunk[i], [(j, localcells[order])])
+		    end
 	    end
-	    for (j, otherhalo) in enumerate(chunkHalos)
-            if j != i
-                # if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
-                append!(cellsToChunk[i],   [(j, findall(iCell -> iCell in otherhalo, chunk))])
-            end
+	    for (j, otherhalo) in enumerate(haloCells)
+		    if j != i
+			# if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
+			localcells = findall(iCell -> iCell in otherhalo, chunk)
+			order = sortperm(cellsInChunk[i][localcells])
+			append!(cellsToChunk[i], [(j, localcells[order])])
+		    end
 	    end
 	end
 
@@ -135,15 +139,15 @@ end
 #         function make_region(startCell)
 #             # grow region out from start cell
             
-#             chunkCells = grow_halo(mpasOcean, [startCell], 20)
+#             innerCells = grow_halo(mpasOcean, [startCell], 20)
             
-#             append!(chunkCells, outerCells)
+#             append!(innerCells, outerCells)
             
-#             haloCells = grow_halo(mpasOcean, chunkCells, halo_width)
+#             haloCells = grow_halo(mpasOcean, innerCells, halo_width)
             
 #             append!(haloCells, outerCells)
             
-#             return chunkCells, haloCells
+#             return innerCells, haloCells
 #         end
 
 

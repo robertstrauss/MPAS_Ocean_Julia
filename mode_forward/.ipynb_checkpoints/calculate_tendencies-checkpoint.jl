@@ -5,7 +5,7 @@ include("../mode_init/MPAS_Ocean.jl")
 ### CPU tendency calculation
 
 function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
-    mpasOcean.normalVelocityTendency[:] .= 0
+    mpasOcean.normalVelocityTendency[:] .= convert(eltype(mpasOcean.normalVelocityTendency), 0)
 
     for iEdge in 1:mpasOcean.nEdges
         # gravity term: take gradient of sshCurrent across edge
@@ -33,7 +33,7 @@ end
 
 
 function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
-    mpasOcean.sshTendency[:] .= 0
+    mpasOcean.sshTendency[:] .= convert(eltype(mpasOcean.sshTendency), 0)
     
     for iCell in 1:mpasOcean.nCells
         # sum flux through each edge of cell
@@ -42,7 +42,7 @@ function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
             neighborCellID = mpasOcean.cellsOnCell[i,iCell]
             
             if neighborCellID != 0
-                mean_depth = ( mpasOcean.bottomDepth[neighborCellID] + mpasOcean.bottomDepth[iCell] ) / 2.0
+                mean_depth = ( mpasOcean.bottomDepth[neighborCellID] + mpasOcean.bottomDepth[iCell] ) / convert(eltype(mpasOcean.bottomDepth), 2.0)
             else
                 mean_depth = mpasOcean.bottomDepth[iCell]
             end

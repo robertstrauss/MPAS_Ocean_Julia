@@ -5,14 +5,15 @@ include("../mode_init/MPAS_Ocean.jl")
 ### CPU tendency calculation
 
 function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
-    mpasOcean.normalVelocityTendency[:] .= convert(eltype(mpasOcean.normalVelocityTendency), 0)
+    mpasOcean.normalVelocityTendency[:,:] .= convert(eltype(mpasOcean.normalVelocityTendency), 0)
 
     for iEdge in 1:mpasOcean.nEdges
-        # gravity term: take gradient of sshCurrent across edge
+        # gravity term
         cell1Index, cell2Index = mpasOcean.cellsOnEdge[:,iEdge]
         
         if cell1Index != 0 && cell2Index != 0
-            mpasOcean.normalVelocityTendency[iEdge] = mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
+            # gradient of ssh across edge
+            mpasOcean.normalVelocityTendency[iEdge,:] .= mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] )
         end
         
         # coriolis term
@@ -20,9 +21,13 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
             eoe = mpasOcean.edgesOnEdge[i,iEdge]
             
             if eoe != 0
-                    mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
+                for l in 1:mpasOcean.maxLevelEdgeTop[iEdge]+1
+                    mpasOcean.normalVelocityTendency[iEdge,l] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe,l] * mpasOcean.fEdge[eoe]
+                    mpasOcean.normalVelocityTendency[iEdge,l] *= mpasOcean.edgeMask[iEdge,l]
+                end
             end
         end
+        mpasOcean.normalVelocityTendency /= mpasOcean.dcEdge[iEdge]
     end
 end
 
@@ -41,15 +46,17 @@ function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
             edgeID = mpasOcean.edgesOnCell[i,iCell]
             neighborCellID = mpasOcean.cellsOnCell[i,iCell]
             
-            if neighborCellID != 0
-                mean_depth = ( mpasOcean.bottomDepth[neighborCellID] + mpasOcean.bottomDepth[iCell] ) / convert(eltype(mpasOcean.bottomDepth), 2.0)
-            else
-                mean_depth = mpasOcean.bottomDepth[iCell]
+            # top layer computed seperately, for nonlinear layer height
+            sshedge = 0.5*( mpasOcean.sshCurrent[iCell] + mpasOcean.sshCurrent[neighborCellID] )
+            flux = ( mpasOcean.layerThicknessEdge[edgeID,1] + sshedge ) * mpasOcean.normalVelocityCurrent[edgeID,1] * mpasOcean.dvEdge[edgeID]
+            mpasOcean.sshTendency[iCell] += flux * mpasOcean.edgeSignOnCell[iCell,i]
+            # lower layers
+            for l in 2:mpasOcean.maxLevelEdgeTop[edgeID]+1
+                flux = (mpasOcean.layerThicknessEdge[edgeID,l]) * mpasOcean.normalVelocityCurrent[edgeID,l] * mpasOcean.dvEdge[edgeID]
+                mpasOcean.sshTendency[iCell] += flux * mpasOcean.edgeSignOnCell[iCell,i]
             end
-            
-            flux = mean_depth * mpasOcean.normalVelocityCurrent[edgeID]
-            mpasOcean.sshTendency[iCell] += flux * mpasOcean.edgeSignOnCell[iCell,i] * mpasOcean.dvEdge[edgeID] / mpasOcean.areaCell[iCell]
         end
+        mpasOcean.sshTendency[iCell] /= mpasOcean.areaCell[iCell]
     end
 end
 

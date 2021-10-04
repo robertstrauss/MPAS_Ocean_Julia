@@ -11,9 +11,10 @@ include("mode_init/MPAS_OceanHalos.jl")
 
 println("loading ocean from file...")
 
+cd("/global/homes/r/rstrauss/repos/MPAS_Ocean_Julia/")
 fullOcean = MPAS_Ocean("MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic", "base_mesh.nc", "mesh.nc", periodicity="Periodic")
 
-halowidth = 4
+halowidth = 5
 
 cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, 2, 2)#; iChunk = rank+1)
 
@@ -25,7 +26,9 @@ myOcean = mpas_subset(fullOcean, myCells, myEdges, myVertices)
 
 MPI.Barrier(comm)
 
-println("ocean distributed between ranks.")
+if rank == root
+	println("ocean distributed between ranks.")
+end
 
 ############### Ocean is now distributed between nodes. Let's do some simulation ####################
 
@@ -37,24 +40,27 @@ gaussianInit!(myOcean)
 
 MPI.Barrier(comm)
 
-println("initial condition set.")
+if rank == root
+	println("initial condition set.")
+end
 
 # simulate for a while
 
 include("mode_forward/time_steppers.jl")
 
-nFrames = 10
+nFrames = 30
 
 mpasOcean = myOcean
 
-sshOverTime = zeros(nFrames, mpasOcean.nCells)
+sshOverTime = zeros(nFrames+1, mpasOcean.nCells)
+sshOverTime[1,:] = mpasOcean.sshCurrent
 
 for f in 1:nFrames
 	# simulate until the halo areas are all invalid and need to be updated
 	for h in 1:halowidth
 		forward_backward_step!(mpasOcean)
 	end
-
+	
 	### request cells in my halo from chunks with those cells
 	halobufferssh = [] # temporarily stores new halo ssh
 	halobuffernv = [] # temporarily stores new halo normal velocity
@@ -80,19 +86,29 @@ for f in 1:nFrames
 		append!(sendreqs, [reqssh])
 		
 		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells])) # Set to remove duplicates
-		reqnv = MPI.Isend(mpasOcean.normalVelocityCurrent[localedges], dstchunk-1, 1, comm)
+		order = sortperm(myEdges[localedges])
+		reqnv = MPI.Isend(mpasOcean.normalVelocityCurrent[localedges[order]], dstchunk-1, 1, comm)
 		append!(sendreqs, [reqnv])
 	end
 	
 	### copy the recieved data into the ocean's halo
+	if rank == root
+	# 	println("halo buffer before: ", halobuffernv[1][1:10])
+	end
+	MPI.Barrier(comm)
 	MPI.Waitall!([recreqs..., sendreqs...])
+	if rank == root
+	# 	println("halo buffer after: ", halobuffernv[1][1:10])
+	end
+	MPI.Barrier(comm)
 	for (i, (_, localcells)) in enumerate(cellsFromChunk[rank+1])
 		mpasOcean.sshCurrent[localcells] = halobufferssh[i]
 		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells]))
-		mpasOcean.normalVelocityCurrent[localedges] = halobuffernv[i]
+		order = sortperm(myEdges[localedges])
+		mpasOcean.normalVelocityCurrent[localedges[order]] = halobuffernv[i]
 	end
-	
-	sshOverTime[f,:] = mpasOcean.sshCurrent
+
+	sshOverTime[f+1,:] = mpasOcean.sshCurrent
 
 	if rank == root
 		println("iteration $f of $nFrames complete")

@@ -147,7 +147,7 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
         mpasOcean.vertexDegree = mesh_file.dim["vertexDegree"]
         mpasOcean.nVertLevels = 1
 
-        # will be incremented in ocn_init_routines_compute_max_levelasdfjo
+        # will be incremented in ocn_init_routines_compute_max_level
         mpasOcean.nNonPeriodicBoundaryEdges = 0
         mpasOcean.nNonPeriodicBoundaryVertices = 0
         mpasOcean.nNonPeriodicBoundaryCells = 0
@@ -287,7 +287,7 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
         # calculate minimum dt based on CFL condition
         mpasOcean.dt = 0.1 * minimum(mpasOcean.dcEdge) / sqrt(mpasOcean.gravity * maximum(mpasOcean.bottomDepth))
         
-        
+        ocn_init_routines_compute_max_level!(mpasOcean)
 
         return mpasOcean
     end
@@ -357,7 +357,7 @@ end
 function DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
 #     alpha0 = mpasOcean.ExactSolutionParameters[0+1]
 #     beta0 = mpasOcean.ExactSolutionParameters[2+1]
-    f0 = 0.001 #mpasOcean.ExactSolutionParameters[12+1]
+    f0 = 0.0001 #mpasOcean.ExactSolutionParameters[12+1]
     H = 1000.0 #mpasOcean.ExactSolutionParameters[14+1]
 #     if (mpasOcean.myNamelist.config_problem_type == "default"
 #         || mpasOcean.myNamelist.config_problem_type == "Barotropic_Tide"

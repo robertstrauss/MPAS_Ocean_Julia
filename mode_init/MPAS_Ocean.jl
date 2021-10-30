@@ -332,6 +332,10 @@ function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
         :fEdge,
         :dcEdge,
         :dvEdge,
+        :boundaryEdge,
+        :yEdge,
+        :xEdge,
+        :angleEdge
     ]
     
     for (iField, field) in enumerate(mainArrayNames)#fieldnames(typeof(mpasOcean)))

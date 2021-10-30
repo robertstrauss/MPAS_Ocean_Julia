@@ -98,11 +98,20 @@ function calculate_normal_velocity_tendency_cuda_kernel!(nEdges,
 
         
         # gravity term: take gradient of ssh across edge
-        normalVelocityTendency[iEdge] = gravity * ( ssh[cellsOnEdge[1,iEdge]] - ssh[cellsOnEdge[2,iEdge]] ) / dcEdge[iEdge]
-
+        cell1 = cellsOnEdge[1,iEdge]
+        cell2 = cellsOnEdge[2,iEdge]
+        
+        if cell1 != 0 && cell2 != 0
+            normalVelocityTendency[iEdge] = gravity * ( ssh[cellsOnEdge[1,iEdge]] - ssh[cellsOnEdge[2,iEdge]] ) / dcEdge[iEdge]
+        end
+        
         # coriolis term: combine norm. vel. of surrounding edges to approx. tangential vel.
         for i = 1:nEdgesOnEdge[iEdge]
-            normalVelocityTendency[iEdge] += weightsOnEdge[i,iEdge] * normalVelocity[edgesOnEdge[i,iEdge]] * fEdge[edgesOnEdge[i,iEdge]]
+            eoe = edgesOnEdge[i, iEdge]
+            
+            if eoe != 0
+                normalVelocityTendency[iEdge] += weightsOnEdge[i,iEdge] * normalVelocity[eoe] * fEdge[eoe]
+            end
         end
 
         
@@ -181,7 +190,7 @@ function calculate_ssh_tendency_cuda_kernel!(nCells,
             edgeID = edgesOnCell[i,iCell]
             neighborCellID = cellsOnCell[i,iCell]
 
-            if neighborCellID !== 0
+            if neighborCellID != 0
                 depth = ( bottomDepth[neighborCellID] + bottomDepth[iCell] ) / 2.0
             else
                 depth = bottomDepth[iCell]

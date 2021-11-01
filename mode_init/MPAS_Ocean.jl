@@ -207,7 +207,8 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
         mpasOcean.yVertex = base_mesh_file["yVertex"][:]
 
 
-        mpasOcean.gridSpacing = mesh_file["gridSpacing"][:]
+#         mpasOcean.gridSpacing = mesh_file["gridSpacing"][:]
+        mpasOcean.gridSpacing = mpasOcean.xCell[2] - mpasOcean.xCell[1]
 
         useGridSpacingMagnitudeDefaultDefinition = true
         if useGridSpacingMagnitudeDefaultDefinition
@@ -301,7 +302,10 @@ end
 
 
 
-
+function MPAS_Ocean(init_state_file_name; periodicity="Periodic")
+    mpasOcean = MPAS_Ocean("/", init_state_file_name, init_state_file_name, periodicity=periodicity)
+    return mpasOcean
+end
 
 
 

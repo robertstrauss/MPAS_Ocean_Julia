@@ -1,5 +1,6 @@
 import NCDatasets
 import CUDA
+import Base.Threads
 # import KernelAbstractions
 
 # include("Namelist.jl")
@@ -71,6 +72,7 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	verticesInChunk = []
 
         innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
+	# println("innercell ", innerCells)
 	# if iChunk == "all"
 		cellsFromChunk = collect([ [] for i in 1:length(innerCells)])
 		cellsToChunk = collect([ [] for i in 1:length(innerCells)])
@@ -78,7 +80,7 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 		# cellsFromChunk = [[]]
 		# cellsToChunk = [[]]
 	# end
-        
+
         chunkWidth = mpasOcean.lX/nXChunks
         chunkHeight = mpasOcean.lY/nYChunks
         
@@ -87,13 +89,27 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
                                Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
         end
         
+	# for i in 1:length(innerCells)
+	# 	println("undef in ic? ", undef in innerCells[i])
+        # end
         # put halo borders around chunks
 	# if iChunk == "all"
-		haloCells = collect([ [] for i in 1:length(innerCells)]) 
+	# haloCells = collect([ [] for i in 1:length(innerCells)]) 
 	# else
 		# haloCells = [[]]
 	# end
-        for (i, chunk) in enumerate(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
+	# println(innerCells)
+	
+	listtype = Vector{Any}
+
+	haloCells = Array{listtype}(undef, length(innerCells))
+	cellsInChunk = Array{listtype}(undef, length(innerCells))
+	edgesInChunk = Array{listtype}(undef, length(innerCells))
+	verticesInChunk = Array{listtype}(undef, length(innerCells))
+	Threads.@threads for i in 1:length(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
+	    chunk = innerCells[i]
+	    # println(undef in innerCells[i])
+	    # println(undef in chunk)
             halo = grow_halo(mpasOcean, chunk, haloWidth)
 	    haloCells[i] = halo
 
@@ -101,14 +117,19 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
             edges    = collect(Set(mpasOcean.edgesOnCell[:,cells]))
             vertices = collect(Set(mpasOcean.verticesOnCell[:,cells]))
 
-
-	    append!(cellsInChunk, [cells])
-	    append!(edgesInChunk, [edges])
-	    append!(verticesInChunk, [vertices])
+	    cellsInChunk[i] = cells
+	    edgesInChunk[i] = edges
+	    verticesInChunk[i] = vertices
+	    # append!(cellsInChunk, [cells])
+	    # append!(edgesInChunk, [edges])
+	    # append!(verticesInChunk, [vertices])
 	    
         end
          
-        for (i, chunk) in enumerate(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
+	# println("seperated regions, finding overlap. $(edgesInChunk)")
+
+	Threads.@threads for i in 1:length(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
+	    chunk = innerCells[i]
 	    cells = union(chunk, haloCells[i])
 	    for (j, otherchunk) in enumerate(innerCells)
 		    if j != i
@@ -198,10 +219,12 @@ function grow_halo(mpasOcean, cells, radius)
 
     for i in 1:radius
         for iCell in outerCells
-            for jCell in mpasOcean.cellsOnCell[:,iCell]
-                if ! (jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells)
-                    append!(newCells, jCell)
-                end
+	    if iCell != 0
+                for jCell in mpasOcean.cellsOnCell[:,iCell]
+			if ! (jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells) && !(jCell == 0)
+                        append!(newCells, jCell)
+                    end
+		end
             end
         end
         if i > 1

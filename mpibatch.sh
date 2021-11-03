@@ -6,5 +6,7 @@
 
 scontrol show hostname $SLURM_JOB_NODELIST | perl -ne 'chomb; print "$_"x1'> mpi_hostnames
 
+export PATH="$PATH:/global/homes/r/rstrauss/miconda3/envs/rusty_mpas_julia/bin"
+
 jlpath="/global/homes/r/rstrauss/miconda3/envs/rusty_mpas_julia/bin"
 $jlpath/mpiexecjl -n 4 -hostfile mpi_hostnames $jlpath/julia ./distributed_simulation_test.jl

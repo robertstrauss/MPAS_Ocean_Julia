@@ -1,8 +1,32 @@
 import CUDA
+import Base.Threads
 
 include("../mode_init/MPAS_Ocean.jl")
 
 ### CPU tendency calculation
+
+function calculate_normal_velocity_tendency_threads!(mpasOcean::MPAS_Ocean)
+    Threads.@threads for iEdge in 1:mpasOcean.nEdges
+    	mpasOcean.normalVelocityTendency[iEdge] = 0
+        if mpasOcean.boundaryEdge[iEdge] == 0
+            # gravity term: take gradient of sshCurrent across edge
+            cell1Index, cell2Index = mpasOcean.cellsOnEdge[:,iEdge]
+
+            if cell1Index != 0 && cell2Index != 0
+                mpasOcean.normalVelocityTendency[iEdge] = mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
+            end
+
+            # coriolis term
+            for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
+                eoe = mpasOcean.edgesOnEdge[i,iEdge]
+
+                if eoe != 0
+                        mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
+                end
+            end
+        end
+    end
+end
 
 function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
     mpasOcean.normalVelocityTendency[:] .= 0
@@ -28,11 +52,37 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
     end
 end
 
+function update_normal_velocity_by_tendency_threads!(mpasOcean::MPAS_Ocean)
+    Threads.@threads for iEdge in 1:mpasOcean.nEdges
+	    mpasOcean.normalVelocityCurrent[iEdge] += mpasOcean.dt * mpasOcean.normalVelocityTendency[iEdge]
+    end
+end
+
 function update_normal_velocity_by_tendency!(mpasOcean::MPAS_Ocean)
     mpasOcean.normalVelocityCurrent .+= mpasOcean.dt .* mpasOcean.normalVelocityTendency
 end
 
 
+function calculate_ssh_tendency_threads!(mpasOcean::MPAS_Ocean)
+    
+    Threads.@threads for iCell in 1:mpasOcean.nCells
+    	mpasOcean.sshTendency[iCell] = 0
+        # sum flux through each edge of cell
+        for i in 1:mpasOcean.nEdgesOnCell[iCell]
+            edgeID = mpasOcean.edgesOnCell[i,iCell]
+            neighborCellID = mpasOcean.cellsOnCell[i,iCell]
+            
+            if neighborCellID != 0
+                mean_depth = ( mpasOcean.bottomDepth[neighborCellID] + mpasOcean.bottomDepth[iCell] ) / 2
+            else
+                mean_depth = mpasOcean.bottomDepth[iCell]
+            end
+            
+            flux = mean_depth * mpasOcean.normalVelocityCurrent[edgeID]
+            mpasOcean.sshTendency[iCell] += flux * mpasOcean.edgeSignOnCell[iCell,i] * mpasOcean.dvEdge[edgeID] / mpasOcean.areaCell[iCell]
+        end
+    end
+end
 
 function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
     mpasOcean.sshTendency[:] .= 0
@@ -52,6 +102,12 @@ function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
             flux = mean_depth * mpasOcean.normalVelocityCurrent[edgeID]
             mpasOcean.sshTendency[iCell] += flux * mpasOcean.edgeSignOnCell[iCell,i] * mpasOcean.dvEdge[edgeID] / mpasOcean.areaCell[iCell]
         end
+    end
+end
+
+function update_ssh_by_tendency_threads!(mpasOcean::MPAS_Ocean)
+    Threads.@threads for iCell in 1:mpasOcean.nCells
+    	mpasOcean.sshCurrent .+= mpasOcean.dt .* mpasOcean.sshTendency
     end
 end
 

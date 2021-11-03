@@ -208,7 +208,7 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
 
 
 #         mpasOcean.gridSpacing = mesh_file["gridSpacing"][:]
-        mpasOcean.gridSpacing = mpasOcean.xCell[2] - mpasOcean.xCell[1]
+	mpasOcean.gridSpacing = sqrt.(mpasOcean.areaCell)#mpasOcean.xCell[2] - mpasOcean.xCell[1]
 
         useGridSpacingMagnitudeDefaultDefinition = true
         if useGridSpacingMagnitudeDefaultDefinition

@@ -367,7 +367,7 @@ end
 function DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
 #     alpha0 = mpasOcean.ExactSolutionParameters[0+1]
 #     beta0 = mpasOcean.ExactSolutionParameters[2+1]
-    f0 = 0.001 #mpasOcean.ExactSolutionParameters[12+1]
+    f0 = 0.0001 #mpasOcean.ExactSolutionParameters[12+1]
     H = 1000.0 #mpasOcean.ExactSolutionParameters[14+1]
 #     if (mpasOcean.myNamelist.config_problem_type == "default"
 #         || mpasOcean.myNamelist.config_problem_type == "Barotropic_Tide"
@@ -385,12 +385,12 @@ function DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
 #             mpasOcean.bottomDepth[:] = H + alpha0*yCell[:]
 #         else
     mpasOcean.bottomDepth[:] .= H
-    for l in 1:mpasOcean.nVertLevels
-        mpasOcean.layerThickness[:,l] = mpasOcean.bottomDepth ./ mpasOcean.nVertLevels
+    for k in 1:mpasOcean.nVertLevels
+        mpasOcean.layerThickness[:,k] = mpasOcean.bottomDepth ./ mpasOcean.nVertLevels
     end
     mpasOcean.bottomDepthEdge[:] .= H
-    for l in 1:mpasOcean.nVertLevels
-        mpasOcean.layerThicknessEdge[:,l] = mpasOcean.bottomDepthEdge ./ mpasOcean.nVertLevels
+    for k in 1:mpasOcean.nVertLevels
+        mpasOcean.layerThicknessEdge[:,k] = mpasOcean.bottomDepthEdge ./ mpasOcean.nVertLevels
     end
 #         end
 #     end

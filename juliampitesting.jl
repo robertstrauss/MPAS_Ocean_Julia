@@ -30,9 +30,9 @@ end
 
 # fullOcean = MPAS_Ocean("MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic", "base_mesh.nc", "mesh.nc", periodicity="Periodic")
 
-fullOcean = MPAS_Ocean("/global/cscratch1/sd/mpeterse/runs/210930_coastal_kelvin_wave_scaling2_1000x1000/ocean/verification/coastal_kelvin_wave/scaling1/initial_state/", "initial_state.nc", "initial_state.nc", periodicity="NonPeriodic_x")
-# fullOcean = MPAS_Ocean("/global/homes/r/rstrauss/repos/MPAS_Ocean_Julia/MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh",
-#                 "culled_mesh.nc", "mesh.nc", periodicity="NonPeriodic_x")
+# fullOcean = MPAS_Ocean("/global/cscratch1/sd/mpeterse/runs/210930_coastal_kelvin_wave_scaling2_1000x1000/ocean/verification/coastal_kelvin_wave/scaling1/initial_state/", "initial_state.nc", "initial_state.nc", periodicity="NonPeriodic_x")
+fullOcean = MPAS_Ocean("/global/homes/r/rstrauss/repos/MPAS_Ocean_Julia/MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh",
+                 "culled_mesh.nc", "mesh.nc", periodicity="NonPeriodic_x")
 
 halowidth = 3
 
@@ -45,9 +45,9 @@ if rank == root
 end
 cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nXChunks, nXChunks)#; iChunk = rank+1)
 
-open("/global/cscratch1/sd/rstrauss/runs/fortrancomparison4096/divided1000x1000ocean_$(rank).txt", "w") do io
-	writedlm(io, [cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk])
-end
+# open("/global/cscratch1/sd/rstrauss/runs/fortrancomparison4096/divided1000x1000ocean_$(rank).txt", "w") do io
+	# writedlm(io, [cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk])
+# end
 
 myCells = cellsInChunk[rank+1] # cellsedgesvertices[1]
 myEdges = edgesInChunk[rank+1] # cellsedgesvertices[2]
@@ -131,18 +131,19 @@ mpasOcean = myOcean
 # sshOverTime[1,:] = mpasOcean.sshCurrent
 
 
-if rank == root
-	println("now simulating for $(nFrames) timesteps, updating halos every $(1) steps.")
-end
+# if rank == root
+# 	println("now simulating for $(nFrames) timesteps, updating halos every $(1) steps.")
+# end
 
+import BenchmarkTools
 
-@time begin
-	exacttime = 0
-	for f in 1:nFrames
-		global exacttime
+exacttime = 0
+BenchmarkTools.@benchmark for f in 1:3
 	# simulate until the halo areas are all invalid and need to be updated
 	# for h in 1:6
 	# forward_backward_step_threads!(mpasOcean)
+	# println("timestep")
+	# @time begin
         calculate_normal_velocity_tendency_threads!(mpasOcean)
     
         update_normal_velocity_by_tendency_threads!(mpasOcean)
@@ -153,9 +154,12 @@ end
     
         update_ssh_by_tendency_threads!(mpasOcean)
 	# end
+	# end
 	
 	exacttime += mpasOcean.dt
 
+	# println("MPI")
+	# @time begin
 	### request cells in my halo from chunks with those cells
 	halobufferssh = [] # temporarily stores new halo ssh
 	halobuffernv = [] # temporarily stores new halo normal velocity
@@ -171,7 +175,7 @@ end
 		append!(halobuffernv, [newhalonv])
 		reqnv = MPI.Irecv!(newhalonv, srcchunk-1, 1, comm) # tag 1 for norm vel
 		append!(recreqs, [reqnv])
-	end
+	# end
 	
 	MPI.Barrier(comm)
 	### send cells in main non-halo area to chunks that need them for their halo
@@ -185,16 +189,16 @@ end
 		reqnv = MPI.Isend(mpasOcean.normalVelocityCurrent[localedges[order]], dstchunk-1, 1, comm)
 		append!(sendreqs, [reqnv])
 	end
-	
+	end	
 	### copy the recieved data into the ocean's halo
-	if rank == root
+	# if rank == root
 	# 	println("halo buffer before: ", halobuffernv[1][1:10])
-	end
+	# end
 	MPI.Barrier(comm)
 	MPI.Waitall!([recreqs..., sendreqs...])
-	if rank == root
+	# if rank == root
 	# 	println("halo buffer after: ", halobuffernv[1][1:10])
-	end
+	# end
 	MPI.Barrier(comm)
 	for (i, (_, localcells)) in enumerate(cellsFromChunk[rank+1])
 		mpasOcean.sshCurrent[localcells] = halobufferssh[i]
@@ -208,7 +212,7 @@ end
 # 	if rank == root
 # 		println("iteration $f of $nFrames complete")
 # 	end
-end end
+end
 
 if rank == root
 	println("cells per proc: ", length(myOcean.sshCurrent))

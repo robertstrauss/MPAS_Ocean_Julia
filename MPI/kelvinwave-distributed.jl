@@ -166,14 +166,15 @@ function kelvinwave(n, writeoutput=false)
 end
 
 
-stepAndSync()
-kelvinwave(1) # force compilation
+# @time stepAndSync()
+# kelvinwave(1) # force compilation
+# @time stepAndSync()
 
 using Profile
 
 @profile stepAndSync()
 
 if rank == 1
-	print("============= step and sync profile =================")
-	Profile.print()
+ 	print("============= step and sync profile =================")
+ 	Profile.print()
 end

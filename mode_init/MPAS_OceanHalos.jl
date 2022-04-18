@@ -352,7 +352,7 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges)])
     end
     for field in edge2dFields
-	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(edges)])
+	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges),:])
     end
     for field in edgeIndexFields
 	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(edges)), getfield(mpasSubOcean, field)))

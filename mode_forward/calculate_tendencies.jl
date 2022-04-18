@@ -10,7 +10,7 @@ function calculate_normal_velocity_tendency_threads!(mpasOcean::MPAS_Ocean)
     	mpasOcean.normalVelocityTendency[iEdge] = 0
         if mpasOcean.boundaryEdge[iEdge] == 0
             # gravity term: take gradient of sshCurrent across edge
-            cell1Index, cell2Index = mpasOcean.cellsOnEdge[:,iEdge]
+            cell1Index, cell2Index = mpasOcean.cellsOnEdge[iEdge, :]
 
             if cell1Index != 0 && cell2Index != 0
                 mpasOcean.normalVelocityTendency[iEdge] = mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
@@ -18,10 +18,10 @@ function calculate_normal_velocity_tendency_threads!(mpasOcean::MPAS_Ocean)
 
             # coriolis term
             for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
-                eoe = mpasOcean.edgesOnEdge[i,iEdge]
+                eoe = mpasOcean.edgesOnEdge[iEdge, i]
 
                 if eoe != 0
-                        mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
+                        mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[iEdge,i] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
                 end
             end
         end
@@ -34,7 +34,7 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
     for iEdge in 1:mpasOcean.nEdges
         if mpasOcean.boundaryEdge[iEdge] == 0
             # gravity term: take gradient of sshCurrent across edge
-            cell1Index, cell2Index = mpasOcean.cellsOnEdge[:,iEdge]
+            cell1Index, cell2Index = mpasOcean.cellsOnEdge[iEdge,:]
 
             if cell1Index != 0 && cell2Index != 0
                 mpasOcean.normalVelocityTendency[iEdge] = mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
@@ -42,10 +42,10 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
 
             # coriolis term
             for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
-                eoe = mpasOcean.edgesOnEdge[i,iEdge]
+                eoe = mpasOcean.edgesOnEdge[iEdge,i]
 
                 if eoe != 0
-                        mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
+                        mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[iEdge,i] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
                 end
             end
         end
@@ -154,8 +154,8 @@ function calculate_normal_velocity_tendency_cuda_kernel!(nEdges,
 
         
         # gravity term: take gradient of ssh across edge
-        cell1 = cellsOnEdge[1,iEdge]
-        cell2 = cellsOnEdge[2,iEdge]
+        cell1 = cellsOnEdge[iEdge,1]
+        cell2 = cellsOnEdge[iEdge,2]
         
         if cell1 != 0 && cell2 != 0
             normalVelocityTendency[iEdge] = gravity * ( ssh[cellsOnEdge[1,iEdge]] - ssh[cellsOnEdge[2,iEdge]] ) / dcEdge[iEdge]
@@ -163,10 +163,10 @@ function calculate_normal_velocity_tendency_cuda_kernel!(nEdges,
         
         # coriolis term: combine norm. vel. of surrounding edges to approx. tangential vel.
         for i = 1:nEdgesOnEdge[iEdge]
-            eoe = edgesOnEdge[i, iEdge]
+            eoe = edgesOnEdge[iEdge,i]
             
             if eoe != 0
-                normalVelocityTendency[iEdge] += weightsOnEdge[i,iEdge] * normalVelocity[eoe] * fEdge[eoe]
+                normalVelocityTendency[iEdge] += weightsOnEdge[iEdge,i] * normalVelocity[eoe] * fEdge[eoe]
             end
         end
 

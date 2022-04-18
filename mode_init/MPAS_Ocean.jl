@@ -166,10 +166,10 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
         mpasOcean.edgesOnCell = my_mesh_file["edgesOnCell"][:]
         mpasOcean.verticesOnCell = my_mesh_file["verticesOnCell"][:]
 
-        mpasOcean.cellsOnEdge = my_mesh_file["cellsOnEdge"][:]
+	mpasOcean.cellsOnEdge = permutedims(my_mesh_file["cellsOnEdge"][:], [2,1])
         mpasOcean.nEdgesOnEdge = base_mesh_file["nEdgesOnEdge"][:]
-        mpasOcean.edgesOnEdge = my_mesh_file["edgesOnEdge"][:]
-        mpasOcean.verticesOnEdge = my_mesh_file["verticesOnEdge"][:]
+	mpasOcean.edgesOnEdge = permutedims(my_mesh_file["edgesOnEdge"][:], [2,1])
+	mpasOcean.verticesOnEdge = permutedims(my_mesh_file["verticesOnEdge"][:], [2,1])
 
         mpasOcean.cellsOnVertex = my_mesh_file["cellsOnVertex"][:]
         mpasOcean.edgesOnVertex = my_mesh_file["edgesOnVertex"][:]
@@ -250,13 +250,13 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
         mpasOcean.bottomDepth = zeros(F, nCells)
         DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
 
-        mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells,maxEdges))
-        mpasOcean.edgeSignOnVertex = zeros(Int8, (nVertices,maxEdges))
+        mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells, maxEdges))
+        mpasOcean.edgeSignOnVertex = zeros(Int8, (nVertices, maxEdges))
 
 
-        mpasOcean.weightsOnEdge = my_mesh_file["weightsOnEdge"][:]
+	mpasOcean.weightsOnEdge = permutedims(my_mesh_file["weightsOnEdge"][:], [2,1])
 
-        mpasOcean.edgeSignOnCell = zeros(Int8, (nCells,maxEdges))
+        mpasOcean.edgeSignOnCell = zeros(Int8, (nCells, maxEdges))
         ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
 
 
@@ -397,7 +397,7 @@ function ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
             iEdge = mpasOcean.edgesOnCell[i,iCell]
             iVertex = mpasOcean.verticesOnCell[i,iCell]
             # Vector points from cell 1 to cell 2
-            if mpasOcean.cellsOnEdge[1,iEdge] == iCell
+            if mpasOcean.cellsOnEdge[iEdge,1] == iCell
                 mpasOcean.edgeSignOnCell[iCell,i] = -1
             else
                 mpasOcean.edgeSignOnCell[iCell,i] = 1
@@ -423,7 +423,7 @@ function ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
             iEdge = mpasOcean.edgesOnVertex[i,iVertex]
             if iEdge != 0
                 # Vector points from vertex 1 to vertex 2
-                if mpasOcean.verticesOnEdge[1,iEdge] == iVertex
+                if mpasOcean.verticesOnEdge[iEdge,1] == iVertex
                     mpasOcean.edgeSignOnVertex[iVertex,i] = -1
                 else
                     mpasOcean.edgeSignOnVertex[iVertex,i] = 1
@@ -437,8 +437,8 @@ end
 
 function ocn_init_routines_compute_max_level!(mpasOcean)
     for iEdge in 1:mpasOcean.nEdges
-        iCell1 = mpasOcean.cellsOnEdge[1,iEdge]
-        iCell2 = mpasOcean.cellsOnEdge[2,iEdge]
+        iCell1 = mpasOcean.cellsOnEdge[iEdge,1]
+        iCell2 = mpasOcean.cellsOnEdge[iEdge,2]
         if iCell1 == 0 || iCell2 == 0
             mpasOcean.boundaryEdge[iEdge,:] .= 1.0
             mpasOcean.maxLevelEdgeTop[iEdge] = -1
@@ -495,11 +495,11 @@ function ocn_init_routines_compute_max_level!(mpasOcean)
     end
 
     for iEdge in 1:mpasOcean.nEdges
-        iCell1 = mpasOcean.cellsOnEdge[1, iEdge]
-        iCell2 = mpasOcean.cellsOnEdge[2, iEdge]
+        iCell1 = mpasOcean.cellsOnEdge[iEdge,1]
+        iCell2 = mpasOcean.cellsOnEdge[iEdge,2]
 
-        iVertex1 = mpasOcean.verticesOnEdge[1, iEdge]
-        iVertex2 = mpasOcean.verticesOnEdge[2, iEdge]
+        iVertex1 = mpasOcean.verticesOnEdge[iEdge,1]
+        iVertex2 = mpasOcean.verticesOnEdge[iEdge,2]
 
         if mpasOcean.boundaryEdge[iEdge] == 1
             if iCell1 != 0

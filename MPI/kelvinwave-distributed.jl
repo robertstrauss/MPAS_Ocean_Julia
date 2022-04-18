@@ -165,9 +165,9 @@ function kelvinwave(n, writeoutput=false)
 	end
 end
 
-
+# force compilation
 stepAndSync()
-kelvinwave(1) # force compilation
+@code_warntype kelvinwave(1) 
 
 using Profile
 

@@ -24,7 +24,7 @@ function kelvinWaveGenerator(mpasOcean, lateralProfile)
     end
 
     function boundaryCondition!(mpasOcean, t)
-        for iEdge in 1:mpasOcean.nEdges
+        @inbounds @fastmath for iEdge in 1:mpasOcean.nEdges
             if mpasOcean.boundaryEdge[iEdge] == 1.0
                 mpasOcean.normalVelocityCurrent[iEdge] = kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)
             end

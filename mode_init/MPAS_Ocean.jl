@@ -7,91 +7,92 @@ include("fixAngleEdge.jl")
 include("BoundaryCondition.jl")
 
 
+I = Int64
+F = Float64
 
+mutable struct MPAS_Ocean#{F<:AbstractFloat}
 
-mutable struct MPAS_Ocean{F<:AbstractFloat}
-    
 #     boundaryConditions::Array{BoundaryCondition}
-    
+
     # prognostic variables
-    sshCurrent::AbstractArray{F}   #where F <: AbstractFloat # sea surface height (cell-centered)
-    sshTendency::AbstractArray{F}   #where F <: AbstractFloat # tendency (cell-centered)
-    
-    normalVelocityCurrent::AbstractArray{F}   #where F <: AbstractFloat # group velocity normal to mesh edges (edge-centered)
-    normalVelocityTendency::AbstractArray{F}   #where F <: AbstractFloat # tendency (edge-centered)
-    
-    
-    bottomDepth::AbstractArray{F}   #where F <: AbstractFloat # bathymetry (cell-centered)
+    sshCurrent::Array{F,1}   #where F <: AbstractFloat # sea surface height (cell-centered)
+    sshTendency::Array{F,1}   #where F <: AbstractFloat # tendency (cell-centered)
+
+    normalVelocityCurrent::Array{F,1}   #where F <: AbstractFloat # group velocity normal to mesh edges (edge-centered)
+    normalVelocityTendency::Array{F,1}   #where F <: AbstractFloat # tendency (edge-centered)
+
+
+    bottomDepth::Array{F,1}   #where F <: AbstractFloat # bathymetry (cell-centered)
     gravity::F
-    
+
     dt::F # timestep
-    
-    
-    
+
+
+
     ### mesh information
-    
-    
+
+
     ## cell-centered arrays
-    nCells::Integer # number of cells
-    cellsOnCell::AbstractArray{I} where I <: Integer # indices of neighbor cells (nCells, nEdgesOnCell[i])
-    edgesOnCell::AbstractArray{I} where I <: Integer # indices of edges of cell (nCells, nEdgesOnCell[i])
-    verticesOnCell::AbstractArray{I} where I <: Integer # indices of vertices of cell (nCells, nEdgesOnCell[i])
-    kiteIndexOnCell::AbstractArray{I} where I <: Integer # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[i])
-    nEdgesOnCell::AbstractArray{I} where I <: Integer # number of edges a cell has (cell-centered)
-    edgeSignOnCell::AbstractArray{Int8} # orientation of edge relative to cell (nCells, nEdgesOnCell[i])
-    latCell::AbstractArray{F}   #where F <: AbstractFloat # latitude of cell (cell-centered)
-    lonCell::AbstractArray{F}   #where F <: AbstractFloat # longitude of cell (cell-centered)
-    xCell::AbstractArray{F}   #where F <: AbstractFloat # x coordinate of cell (cell-centered)
-    yCell::AbstractArray{F}   #where F <: AbstractFloat # y coordinate of cell (cell-centered)
-    areaCell::AbstractArray{F}   #where F <: AbstractFloat # area of cell (cell-centered)
-    fCell::AbstractArray{F}   #where F <: AbstractFloat # coriolis parameter (cell-centered)
-    maxLevelCell::AbstractArray{I} where I <: Integer
-    gridSpacing::AbstractArray{F}   #where F <: AbstractFloat
-    boundaryCell::AbstractArray{I} where I <: Integer # 0 for inner cells, 1 for boundary cells (cell-centered)
-    
-    
+    nCells::I  # number of cells
+    cellsOnCell::Array{I,2}  # indices of neighbor cells (nCells, nEdgesOnCell[i])
+    edgesOnCell::Array{I,2}  # indices of edges of cell (nCells, nEdgesOnCell[i])
+    verticesOnCell::Array{I,2}  # indices of vertices of cell (nCells, nEdgesOnCell[i])
+    kiteIndexOnCell::Array{I,2}  # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[i])
+    nEdgesOnCell::Array{I,1}  # number of edges a cell has (cell-centered)
+    edgeSignOnCell::Array{Int8,2} # orientation of edge relative to cell (nCells, nEdgesOnCell[i])
+    latCell::Array{F,1}   #where F <: AbstractFloat # latitude of cell (cell-centered)
+    lonCell::Array{F,1}   #where F <: AbstractFloat # longitude of cell (cell-centered)
+    xCell::Array{F,1}   #where F <: AbstractFloat # x coordinate of cell (cell-centered)
+    yCell::Array{F,1}   #where F <: AbstractFloat # y coordinate of cell (cell-centered)
+    areaCell::Array{F,1}   #where F <: AbstractFloat # area of cell (cell-centered)
+    fCell::Array{F,1}   #where F <: AbstractFloat # coriolis parameter (cell-centered)
+    maxLevelCell::Array{I,1}
+    gridSpacing::Array{F,1}   #where F <: AbstractFloat
+    boundaryCell::Array{I,1}  # 0 for inner cells, 1 for boundary cells (cell-centered)
+
+
     ## edge-centered arrays
-    nEdges::Integer
-    cellsOnEdge::AbstractArray{I} where I <: Integer # indices of the two cells on this edge (nEdges, 2)
-    edgesOnEdge::AbstractArray{I} where I <: Integer
-    verticesOnEdge::AbstractArray{I} where I <: Integer
-    nEdgesOnEdge::AbstractArray{I} where I <: Integer
-    xEdge::AbstractArray{F}   #where F <: AbstractFloat
-    yEdge::AbstractArray{F}   #where F <: AbstractFloat
-    dvEdge::AbstractArray{F}   #where F <: AbstractFloat
-    dcEdge::AbstractArray{F}   #where F <: AbstractFloat
-    fEdge::AbstractArray{F}   #where F <: AbstractFloat # coriolis parameter
-    angleEdge::AbstractArray{F}   #where F <: AbstractFloat
-    weightsOnEdge::AbstractArray{F}   #where F <: AbstractFloat # coeffecients of norm vels of surrounding edges in linear combination to compute tangential velocity
-    maxLevelEdgeTop::AbstractArray{I} where I <: Integer
-    maxLevelEdgeBot::AbstractArray{I} where I <: Integer
-    boundaryEdge::AbstractArray{I} where I <: Integer
-    edgeMask::AbstractArray{I} where I <: Integer
-    
-    
+    nEdges::I
+    cellsOnEdge::Array{I,2}  # indices of the two cells on this edge (nEdges, 2)
+    edgesOnEdge::Array{I,2}
+    verticesOnEdge::Array{I,2}
+    nEdgesOnEdge::Array{I,1}
+    xEdge::Array{F,1}   #where F <: AbstractFloat
+    yEdge::Array{F,1}   #where F <: AbstractFloat
+    dvEdge::Array{F,1}   #where F <: AbstractFloat
+    dcEdge::Array{F,1}   #where F <: AbstractFloat
+    fEdge::Array{F,1}   #where F <: AbstractFloat # coriolis parameter
+    angleEdge::Array{F,1}   #where F <: AbstractFloat
+    weightsOnEdge::Array{F,2}   #where F <: AbstractFloat # coeffecients of norm vels of surrounding edges in linear combination to compute tangential velocity
+    maxLevelEdgeTop::Array{I,1}
+    maxLevelEdgeBot::Array{I,1}
+    boundaryEdge::Array{I,1}
+    edgeMask::Array{I,1}
+
+
     ## vertex-centered arrays
-    nVertices::Integer
-    latVertex::AbstractArray{F}   #where F <: AbstractFloat
-    lonVertex::AbstractArray{F}   #where F <: AbstractFloat
-    xVertex::AbstractArray{F}   #where F <: AbstractFloat
-    yVertex::AbstractArray{F}   #where F <: AbstractFloat
+    nVertices::I
+    latVertex::Array{F,1}   #where F <: AbstractFloat
+    lonVertex::Array{F,1}   #where F <: AbstractFloat
+    xVertex::Array{F,1}   #where F <: AbstractFloat
+    yVertex::Array{F,1}   #where F <: AbstractFloat
     vertexDegree::Integer
-    cellsOnVertex::AbstractArray{I} where I <: Integer
-    edgesOnVertex::AbstractArray{I} where I <: Integer
-    edgeSignOnVertex::AbstractArray{I} where I <: Integer
-    fVertex::AbstractArray{F}   #where F <: AbstractFloat
-    areaTriangle::AbstractArray{F}   #where F <: AbstractFloat
-    kiteAreasOnVertex::AbstractArray{F}   #where F <: AbstractFloat
-    maxLevelVertexTop::AbstractArray{I} where I <: Integer
-    maxLevelVertexBot::AbstractArray{I} where I <: Integer
-    boundaryVertex::AbstractArray{I} where I <: Integer
-
-    
-    
-    nVertLevels::Integer
+    cellsOnVertex::Array{I,2}
+    edgesOnVertex::Array{I,2}
+    edgeSignOnVertex::Array{I,2}
+    fVertex::Array{F,1}   #where F <: AbstractFloat
+    areaTriangle::Array{F,1}   #where F <: AbstractFloat
+    kiteAreasOnVertex::Array{F,2}   #where F <: AbstractFloat
+    maxLevelVertexTop::Array{I,1}
+    maxLevelVertexBot::Array{I,1}
+    boundaryVertex::Array{I,1}
 
 
-#     ExactSolutionParameters::AbstractArray{F}   #where F <: AbstractFloat
+
+    nVertLevels::I
+
+
+#     ExactSolutionParameters::Array{F,1}   #where F <: AbstractFloat
 #     myNamelist::Namelist
 
     gridSpacingMagnitude::F
@@ -100,41 +101,41 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
     lX::F
     lY::F
 
-    nNonPeriodicBoundaryCells::Integer
-    nNonPeriodicBoundaryEdges::Integer
-    nNonPeriodicBoundaryVertices::Integer
+    nNonPeriodicBoundaryCells::I
+    nNonPeriodicBoundaryEdges::I
+    nNonPeriodicBoundaryVertices::I
 
 
 
 
-    
+
     # load state from file
 #     function MPAS_Ocean(mesh_directory::String, base_mesh_file_name, mesh_file_name; periodicity::String)
 #         return MPAS_Ocean(mesh_directory=mesh_directory, base_mesh_file_name=base_mesh_file_name, mesh_file_name=mesh_file_name, periodicity=periodicity)
 #     end
+    # function MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
+    #                     base_mesh_file_name = "base_mesh.nc",
+    #                     mesh_file_name = "mesh.nc"; periodicity = "Periodic")
+    #     return MPAS_Ocean{Float64}( mesh_directory,
+    #                     base_mesh_file_name,
+    #                     mesh_file_name;
+    #                     periodicity = "Periodic")
+    # end
     function MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
                         base_mesh_file_name = "base_mesh.nc",
-                        mesh_file_name = "mesh.nc"; periodicity = "Periodic")
-        return MPAS_Ocean{Float64}( mesh_directory,
-                        base_mesh_file_name,
-                        mesh_file_name;
-                        periodicity = "Periodic")
-    end
-    function MPAS_Ocean{F}(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
-                        base_mesh_file_name = "base_mesh.nc",
                         mesh_file_name = "mesh.nc";
-                        periodicity = "Periodic") where F<:AbstractFloat
-        mpasOcean = new{F}()
-        
-        
+                        periodicity = "Periodic")# where F<:AbstractFloat
+        mpasOcean = new()
+
+
 
 
 #        mpasOcean.boundaryConditions = [BoundaryCondition()]
-        
-        
+
+
         ### Mesh stuff
 #         mpasOcean.myNamelist = Namelist()
-        
+
         base_mesh_file = NCDatasets.Dataset("$mesh_directory/$base_mesh_file_name", "r", format=:netcdf4_classic)
         mesh_file = NCDatasets.Dataset("$mesh_directory/$mesh_file_name", "r", format=:netcdf4_classic)
 
@@ -260,9 +261,9 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
         ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
 
 
-        mpasOcean.boundaryCell = zeros(Int8, (nCells, mpasOcean.nVertLevels))
-        mpasOcean.boundaryEdge = zeros(Int8, (nEdges, mpasOcean.nVertLevels))
-        mpasOcean.boundaryVertex = zeros(Int8, (nVertices, mpasOcean.nVertLevels))
+        mpasOcean.boundaryCell = zeros(Int8, (nCells))#, mpasOcean.nVertLevels))
+        mpasOcean.boundaryEdge = zeros(Int8, (nEdges))#, mpasOcean.nVertLevels))
+        mpasOcean.boundaryVertex = zeros(Int8, (nVertices))#, mpasOcean.nVertLevels))
         mpasOcean.edgeMask = zeros(Int8, nEdges)
 
         mpasOcean.maxLevelCell = zeros(Int64, nCells)
@@ -272,22 +273,22 @@ mutable struct MPAS_Ocean{F<:AbstractFloat}
         mpasOcean.maxLevelVertexBot = zeros(Int64, nVertices)
 
 
-        
-        
-        
-        
+
+
+
+
         ## defining the prognostic variables
         mpasOcean.sshCurrent = zeros(F, nCells)
         mpasOcean.sshTendency = zeros(F, nCells)
 
         mpasOcean.normalVelocityCurrent = zeros(F, (nEdges))
         mpasOcean.normalVelocityTendency = zeros(F, (nEdges))
-        
+
         mpasOcean.gravity = 9.8
-        
+
         # calculate minimum dt based on CFL condition
         mpasOcean.dt = 0.1 * minimum(mpasOcean.dcEdge) / sqrt(mpasOcean.gravity * maximum(mpasOcean.bottomDepth))
-        
+
         ocn_init_routines_compute_max_level!(mpasOcean)
 
         return mpasOcean
@@ -314,7 +315,7 @@ function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
     if float_type=="default"
         float_type = typeof(mpasOcean.gravity)
     end
-    
+
     mainArrayNames = [
         :sshTendency,
         :sshCurrent,
@@ -325,7 +326,7 @@ function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
         :areaCell,
         :edgeSignOnCell,
     # ]
-    
+
     # mainEdgeArrayNames = [
         :normalVelocityTendency,
         :normalVelocityCurrent,
@@ -341,9 +342,9 @@ function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
         :xEdge,
         :angleEdge
     ]
-    
+
     for (iField, field) in enumerate(mainArrayNames)#fieldnames(typeof(mpasOcean)))
-        # if typeof(mpasOcean).types[iField] == AbstractArray
+        # if typeof(mpasOcean).types[iField] == Array
         if eltype(getfield(mpasOcean, field)) <: AbstractFloat
             elT = float_type
         else
@@ -352,9 +353,9 @@ function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
         setfield!(mpasOcean, field, convert(array_type{elT}, getfield(mpasOcean, field)))
         # end
     end
-    
 
-    
+
+
 end
 
 
@@ -689,6 +690,3 @@ end
 #                                SurfaceElevationScale,kappaX,kappaY,kappa1,kappa2,uL,uR,s,x0]
 #     return ExactSolutionParameters
 # end
-
-
-

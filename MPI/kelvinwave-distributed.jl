@@ -2,14 +2,14 @@ using MPI
 MPI.Init()
 
 comm = MPI.COMM_WORLD
-rank = MPI.Comm_rank(comm)
-root = 0
+rank = MPI.Comm_rank(comm) + 1
+root = 1
 commsize = MPI.Comm_size(comm)
 
 
 using DelimitedFiles
 
-CODE_ROOT = pwd() * "/../"
+CODE_ROOT = pwd() * "/"#../"
 
 include(CODE_ROOT * "mode_init/MPAS_Ocean.jl")
 include(CODE_ROOT * "mode_init/MPAS_OceanHalos.jl")
@@ -24,18 +24,24 @@ include(CODE_ROOT * "mode_init/exactsolutions.jl")
 
 println("loading ocean from file...")
 
-cd("/global/homes/r/rstrauss/repos/MPAS_Ocean_Julia/")
+cd(CODE_ROOT)
+
+
+F = Float64
+I = Int64
+
+
 # fullOcean = MPAS_Ocean("MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic", "base_mesh.nc", "mesh.nc", periodicity="Periodic")
-nCellsX = 64
+nCellsX = 64::I
 fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
 		       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x")
-halowidth = 5
+halowidth = 5::I
 
-cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, 2, 2)#; iChunk = rank+1)
+cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, 2, 2)#; iChunk = rank)
 
-myCells = cellsInChunk[rank+1] # cellsedgesvertices[1]
-myEdges = edgesInChunk[rank+1] # cellsedgesvertices[2]
-myVertices = verticesInChunk[rank+1] # cellsedgesvertices[3]
+myCells = cellsInChunk[rank] # cellsedgesvertices[1]
+myEdges = edgesInChunk[rank] # cellsedgesvertices[2]
+myVertices = verticesInChunk[rank] # cellsedgesvertices[3]
 
 mpasOcean = mpas_subset(fullOcean, myCells, myEdges, myVertices)
 
@@ -45,7 +51,7 @@ if rank == root
 	println("ocean distributed between ranks.")
 end
 
-	   
+
 
 
 lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
@@ -53,7 +59,7 @@ lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
 kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(mpasOcean, lateralProfilePeriodic)
 
 
-exacttime = 0
+exacttime = 0.0::F
 
 
 function stepAndSync()
@@ -71,12 +77,12 @@ function stepAndSync()
 
 		exacttime += mpasOcean.dt
 	end
-	
+
 	### request cells in my halo from chunks with those cells
 	halobufferssh = [] # temporarily stores new halo ssh
 	halobuffernv = [] # temporarily stores new halo normal velocity
 	recreqs = []
-	for (srcchunk, localcells) in cellsFromChunk[rank+1]	
+	for (srcchunk, localcells) in cellsFromChunk[rank]
 		newhalossh = Array{eltype(mpasOcean.sshCurrent)}(undef, length(localcells))
 		append!(halobufferssh, [newhalossh])
 		reqssh = MPI.Irecv!(newhalossh, srcchunk-1, 0, comm) # tag 0 for ssh
@@ -88,20 +94,20 @@ function stepAndSync()
 		reqnv = MPI.Irecv!(newhalonv, srcchunk-1, 1, comm) # tag 1 for norm vel
 		append!(recreqs, [reqnv])
 	end
-	
+
 	MPI.Barrier(comm)
 	### send cells in main non-halo area to chunks that need them for their halo
 	sendreqs = []
-	for (dstchunk, localcells) in cellsToChunk[rank+1]
+	for (dstchunk, localcells) in cellsToChunk[rank]
 		reqssh = MPI.Isend(mpasOcean.sshCurrent[localcells], dstchunk-1, 0, comm)
 		append!(sendreqs, [reqssh])
-		
+
 		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells])) # Set to remove duplicates
 		order = sortperm(myEdges[localedges])
 		reqnv = MPI.Isend(mpasOcean.normalVelocityCurrent[localedges[order]], dstchunk-1, 1, comm)
 		append!(sendreqs, [reqnv])
 	end
-	
+
 	### copy the recieved data into the ocean's halo
 	if rank == root
 	# 	println("halo buffer before: ", halobuffernv[1][1:10])
@@ -112,7 +118,7 @@ function stepAndSync()
 	# 	println("halo buffer after: ", halobuffernv[1][1:10])
 	end
 	MPI.Barrier(comm)
-	for (i, (_, localcells)) in enumerate(cellsFromChunk[rank+1])
+	for (i, (_, localcells)) in enumerate(cellsFromChunk[rank])
 		mpasOcean.sshCurrent[localcells] = halobufferssh[i]
 		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells]))
 		order = sortperm(myEdges[localedges])
@@ -139,16 +145,16 @@ function kelvinwave(n, writeoutput=false)
 
 	for f in 1:n
 		stepAndSync()
-		
+
 		# exacttime += halowidth*dt
-		
+
 		sshOverTime[f+1,:] = mpasOcean.sshCurrent
-			    
+
 		if rank == root
 			println("$rank: iteration $f of $n complete")
 		end
 	end
-	
+
 	print("$rank: total error (ssh): $(sum([abs(mpasOcean.sshCurrent[iCell] - kelvinWaveExactSSH(mpasOcean, iCell, exacttime)) for iCell in 1:mpasOcean.nCells]))")
 
 	if writeoutput
@@ -165,9 +171,9 @@ function kelvinwave(n, writeoutput=false)
 	end
 end
 
-# force compilation
+# # force compilation
 stepAndSync()
-@code_warntype kelvinwave(1) 
+kelvinwave(1)
 
 using Profile
 

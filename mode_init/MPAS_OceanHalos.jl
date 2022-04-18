@@ -9,43 +9,43 @@ include("BoundaryCondition.jl")
 include("MPAS_Ocean.jl")
 
 mutable struct MPAS_OceanHalos
-    
+
     # fullOcean::MPAS_Ocean
-    
+
     haloChunks::Array{MPAS_Ocean}
-    
+
     # cellsWithinHalo::AbstractArray
     # cellsOfHalo::AbstractArray
-    
+
     # localCellsWithinHalo::AbstractArray
     # localCellsOfHalo::AbstractArray
-    
+
     cellsToRank::Array
     cellsFromRank::Array
 
     edgesToRank::Array
     edgesFromRank::Array
-    
+
     # load state from file
     function MPAS_OceanHalos(mpasOcean, haloWidth, nXChunks, nYChunks)
        mpasOceanHalos = new([], [], [], [], [])
-        
+
         # divide up cells of mpasOcean into rectangular grid
-        
+
         innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
         mpasOceanHalos.cellsFromRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
         mpasOceanHalos.cellsToRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
-        
+
         chunkWidth = mpasOcean.lX/nXChunks
         chunkHeight = mpasOcean.lY/nYChunks
-        
+
         for iCell in 1:mpasOcean.nCells
             append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
                                Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
         end
-        
+
         # make sub ocean objects
-        
+
         for (i, chunk) in enumerate(innerCells)
             halo = grow_halo(mpasOcean, chunk, haloWidth)
 
@@ -58,10 +58,10 @@ mutable struct MPAS_OceanHalos
 		mpasOceanHalos.cellsToRank[j,i]   = findall(iCell -> iCell in halo, otherchunk)
 	    end
 
-            
+
             append!(mpasOceanHalos.haloChunks, [mpas_subset(mpasOcean, cells, edges, vertices)])
         end
-        
+
         return mpasOceanHalos
     end
 end
@@ -81,25 +81,29 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 		# cellsToChunk = [[]]
 	# end
 
-        chunkWidth = mpasOcean.lX/nXChunks
-        chunkHeight = mpasOcean.lY/nYChunks
-        
+		lXedge = maximum(mpasOcean.xEdge) - minimum(mpasOcean.xEdge)
+		lYedge = maximum(mpasOcean.yEdge) - minimum(mpasOcean.yEdge)
+
+
+		chunkWidth = lXedge/nXChunks
+		chunkHeight = lYedge/nYChunks
+
         for iCell in 1:mpasOcean.nCells
             append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
                                Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
         end
-        
+
 	# for i in 1:length(innerCells)
 	# 	println("undef in ic? ", undef in innerCells[i])
         # end
         # put halo borders around chunks
 	# if iChunk == "all"
-	# haloCells = collect([ [] for i in 1:length(innerCells)]) 
+	# haloCells = collect([ [] for i in 1:length(innerCells)])
 	# else
 		# haloCells = [[]]
 	# end
 	# println(innerCells)
-	
+
 	listtype = Vector{Any}
 
 	haloCells = Array{listtype}(undef, length(innerCells))
@@ -123,9 +127,9 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	    # append!(cellsInChunk, [cells])
 	    # append!(edgesInChunk, [edges])
 	    # append!(verticesInChunk, [vertices])
-	    
+
         end
-         
+
 	# println("seperated regions, finding overlap. $(edgesInChunk)")
 
 	Threads.@threads for i in 1:length(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
@@ -159,15 +163,15 @@ end
 
 #         function make_region(startCell)
 #             # grow region out from start cell
-            
+
 #             innerCells = grow_halo(mpasOcean, [startCell], 20)
-            
+
 #             append!(innerCells, outerCells)
-            
+
 #             haloCells = grow_halo(mpasOcean, innerCells, halo_width)
-            
+
 #             append!(haloCells, outerCells)
-            
+
 #             return innerCells, haloCells
 #         end
 
@@ -184,7 +188,7 @@ function sizeof_main_arrays(mpasOcean::MPAS_Ocean, cells, edges)
         :areaCell,
         :edgeSignOnCell,
     ]
-    
+
     mainEdgeArrayNames = [
         :normalVelocityTendency,
         :normalVelocityCurrent,
@@ -208,8 +212,8 @@ function sizeof_main_arrays(mpasOcean::MPAS_Ocean, cells, edges)
 
     return size
 end
-    
-    
+
+
 
 function grow_halo(mpasOcean, cells, radius)
     # grow halo from edge of region
@@ -297,7 +301,7 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 	:edgesOnEdge,
 	:edgesOnVertex,
     ]
-    
+
     vertexCenteredFields = [
         # :nVertices,
         :latVertex,
@@ -331,7 +335,7 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 	end
 	return iLocals[1]
     end
-    
+
     ## take subsection of given cells, and map index fields to new local indices
 
     for field in cellCenteredFields
@@ -347,7 +351,7 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(cells)), getfield(mpasSubOcean, field)))
     end
     mpasSubOcean.nCells = length(cells)
- 
+
     for field in edgeCenteredFields
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges)])
     end
@@ -383,6 +387,3 @@ function moveArrays!(mpasOceanHalos::MPAS_OceanHalos, array_type)
         moveArrays!(mpasOcean, array_type)
     end
 end
-
-
-

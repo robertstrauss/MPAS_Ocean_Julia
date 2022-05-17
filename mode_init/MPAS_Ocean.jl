@@ -15,14 +15,15 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
 #     boundaryConditions::Array{BoundaryCondition}
 
     # prognostic variables
-    sshCurrent::Array{F,1}   #where F <: AbstractFloat # sea surface height (cell-centered)
-    sshTendency::Array{F,1}   #where F <: AbstractFloat # tendency (cell-centered)
+    sshCurrent::Array{F,2}   #where F <: AbstractFloat # sea surface height (cell-centered)
+    sshTendency::Array{F,2}   #where F <: AbstractFloat # tendency (cell-centered)
 
-    normalVelocityCurrent::Array{F,1}   #where F <: AbstractFloat # group velocity normal to mesh edges (edge-centered)
-    normalVelocityTendency::Array{F,1}   #where F <: AbstractFloat # tendency (edge-centered)
+    normalVelocityCurrent::Array{F,2}   #where F <: AbstractFloat # group velocity normal to mesh edges (edge-centered)
+    normalVelocityTendency::Array{F,2}   #where F <: AbstractFloat # tendency (edge-centered)
 
 
-    bottomDepth::Array{F,1}   #where F <: AbstractFloat # bathymetry (cell-centered)
+	bottomDepth::Array{F,1}   #where F <: AbstractFloat # bathymetry (cell-centered)
+    bottomDepthEdge::Array{F,1}   #where F <: AbstractFloat # bathymetry (cell-centered)
     gravity::F
 
     dt::F # timestep
@@ -77,22 +78,25 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
     xVertex::Array{F,1}   #where F <: AbstractFloat
     yVertex::Array{F,1}   #where F <: AbstractFloat
     vertexDegree::Integer
-    cellsOnVertex::Array{I,2}
-    edgesOnVertex::Array{I,2}
-    edgeSignOnVertex::Array{I,2}
-    fVertex::Array{F,1}   #where F <: AbstractFloat
-    areaTriangle::Array{F,1}   #where F <: AbstractFloat
-    kiteAreasOnVertex::Array{F,2}   #where F <: AbstractFloat
-    maxLevelVertexTop::Array{I,1}
-    maxLevelVertexBot::Array{I,1}
-    boundaryVertex::Array{I,1}
+    cellsOnVertex::Array{I}
+    edgesOnVertex::Array{I}
+    edgeSignOnVertex::Array{I}
+    fVertex::Array{F}   #where F <: AbstractFloat
+    areaTriangle::Array{F}   #where F <: AbstractFloat
+    kiteAreasOnVertex::Array{F}   #where F <: AbstractFloat
+    maxLevelVertexTop::Array{I}
+    maxLevelVertexBot::Array{I}
+    boundaryVertex::Array{I}
+    vertexMask::Array{UInt8}
 
 
 
-    nVertLevels::I
+    nVertLevels::Integer
+    layerThickness::Array{F}
+    layerThicknessEdge::Array{F}
 
 
-#     ExactSolutionParameters::Array{F,1}   #where F <: AbstractFloat
+#     ExactSolutionParameters::Array{F}   #where F <: AbstractFloat
 #     myNamelist::Namelist
 
     gridSpacingMagnitude::F
@@ -146,7 +150,7 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
         mpasOcean.nEdges = mesh_file.dim["nEdges"]
         mpasOcean.nVertices = mesh_file.dim["nVertices"]
         mpasOcean.vertexDegree = mesh_file.dim["vertexDegree"]
-        mpasOcean.nVertLevels = 1
+        mpasOcean.nVertLevels = nvlevels
 
         # will be incremented in ocn_init_routines_compute_max_level
         mpasOcean.nNonPeriodicBoundaryEdges = 0
@@ -249,6 +253,11 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
         mpasOcean.fCell = zeros(F, nCells)
         mpasOcean.fEdge = zeros(F, nEdges)
         mpasOcean.bottomDepth = zeros(F, nCells)
+        mpasOcean.bottomDepthEdge = zeros(F, nEdges)
+
+        mpasOcean.layerThickness = zeros(F, (nCells, mpasOcean.nVertLevels))
+        mpasOcean.layerThicknessEdge = zeros(F, (nEdges, mpasOcean.nVertLevels))
+
         DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
 
         mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells,maxEdges))
@@ -261,10 +270,12 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
         ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
 
 
-        mpasOcean.boundaryCell = zeros(Int8, (nCells))#, mpasOcean.nVertLevels))
-        mpasOcean.boundaryEdge = zeros(Int8, (nEdges))#, mpasOcean.nVertLevels))
-        mpasOcean.boundaryVertex = zeros(Int8, (nVertices))#, mpasOcean.nVertLevels))
-        mpasOcean.edgeMask = zeros(Int8, nEdges)
+        mpasOcean.boundaryCell = zeros(Int8, (nCells, mpasOcean.nVertLevels))
+        mpasOcean.boundaryEdge = zeros(Int8, (nEdges, mpasOcean.nVertLevels))
+        mpasOcean.boundaryVertex = zeros(Int8, (nVertices, mpasOcean.nVertLevels))
+        mpasOcean.cellMask = zeros(Int8, (nCells, mpasOcean.nVertLevels))
+        mpasOcean.edgeMask = zeros(Int8, (nEdges, mpasOcean.nVertLevels))
+        mpasOcean.vertexMask = zeros(Int8, (nVertices, mpasOcean.nVertLevels))
 
         mpasOcean.maxLevelCell = zeros(Int64, nCells)
         mpasOcean.maxLevelEdgeTop = zeros(Int64, nEdges)
@@ -281,8 +292,8 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
         mpasOcean.sshCurrent = zeros(F, nCells)
         mpasOcean.sshTendency = zeros(F, nCells)
 
-        mpasOcean.normalVelocityCurrent = zeros(F, (nEdges))
-        mpasOcean.normalVelocityTendency = zeros(F, (nEdges))
+        mpasOcean.normalVelocityCurrent = zeros(F, (nEdges, mpasOcean.nVertLevels))
+        mpasOcean.normalVelocityTendency = zeros(F, (nEdges, mpasOcean.nVertLevels))
 
         mpasOcean.gravity = 9.8
 
@@ -376,14 +387,21 @@ function DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
 #             mpasOcean.fEdge[:] = f0 + beta0*mpasOcean.yEdge[:]
 #             mpasOcean.fVertex[:] = f0 + beta0*mpasOcean.yVertex[:]
 #         else
-            mpasOcean.fCell[:] .= f0
-            mpasOcean.fEdge[:] .= f0
-            mpasOcean.fVertex[:] .= f0
+    mpasOcean.fCell[:] .= f0
+    mpasOcean.fEdge[:] .= f0
+    mpasOcean.fVertex[:] .= f0
 #         end
 #         if mpasOcean.myNamelist.config_problem_type == "Topographic_Rossby_Wave"
 #             mpasOcean.bottomDepth[:] = H + alpha0*yCell[:]
 #         else
-            mpasOcean.bottomDepth[:] .= H
+    mpasOcean.bottomDepth[:] .= H
+    for k in 1:mpasOcean.nVertLevels
+        mpasOcean.layerThickness[:,k] = mpasOcean.bottomDepth ./ mpasOcean.nVertLevels
+    end
+    mpasOcean.bottomDepthEdge[:] .= H
+    for k in 1:mpasOcean.nVertLevels
+        mpasOcean.layerThicknessEdge[:,k] = mpasOcean.bottomDepthEdge ./ mpasOcean.nVertLevels
+    end
 #         end
 #     end
 end
@@ -437,6 +455,8 @@ end
 
 
 function ocn_init_routines_compute_max_level!(mpasOcean)
+    mpasOcean.maxLevelCell[:] .= mpasOcean.nVertLevels-1
+
     for iEdge in 1:mpasOcean.nEdges
         iCell1 = mpasOcean.cellsOnEdge[1,iEdge]
         iCell2 = mpasOcean.cellsOnEdge[2,iEdge]
@@ -488,9 +508,9 @@ function ocn_init_routines_compute_max_level!(mpasOcean)
     for iEdge in 1:mpasOcean.nEdges
         index_UpperLimit = mpasOcean.maxLevelEdgeTop[iEdge]
         if index_UpperLimit > -1
-            if determine_boundaryEdge_Generalized_Method
-                mpasOcean.boundaryEdge[iEdge,1:index_UpperLimit+1] .= 0
-            end
+#             if determine_boundaryEdge_Generalized_Method
+#                 mpasOcean.boundaryEdge[iEdge,1:index_UpperLimit+1] .= 0
+#             end
             mpasOcean.edgeMask[iEdge,1:index_UpperLimit+1] .= 1
         end
     end

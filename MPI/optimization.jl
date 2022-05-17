@@ -51,6 +51,9 @@ exacttime = 0.0::F
 @btime calculate_normal_velocity_tendency!(mpasOcean)
 @btime update_normal_velocity_by_tendency!(mpasOcean)
 
+@btime update_normal_velocity_by_tendency_loop!(mpasOcean)
+
+
 @btime boundaryCondition!(mpasOcean, exacttime)
 
 @btime calculate_ssh_tendency!(mpasOcean)
@@ -64,3 +67,5 @@ exacttime = 0.0::F
 @code_warntype update_normal_velocity_by_tendency!(mpasOcean)
 
 @code_warntype boundaryCondition!(mpasOcean, exacttime)
+
+@code_warntype calculate_ssh_tendency!(mpasOcean)

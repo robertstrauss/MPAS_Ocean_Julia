@@ -329,11 +329,11 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
     ]
 
     function indexMap(iGlobal, indices)
-	iLocals = findall(ind -> ind==iGlobal, indices)
-	if length(iLocals) == 0
-	    return 0
-	end
-	return iLocals[1]
+		iLocals = findall(ind -> ind==iGlobal, indices)
+		if length(iLocals) == 0
+		    return 0
+		end
+		return iLocals[1]
     end
 
     ## take subsection of given cells, and map index fields to new local indices

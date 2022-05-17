@@ -9,6 +9,8 @@ commsize = MPI.Comm_size(comm)
 
 using DelimitedFiles
 
+using LinearAlgebra
+
 CODE_ROOT = pwd() * "/"#../"
 
 include(CODE_ROOT * "mode_init/MPAS_Ocean.jl")
@@ -155,7 +157,13 @@ function kelvinwave(n, writeoutput=false)
 		end
 	end
 
-	print("$rank: total error (ssh): $(sum([abs(mpasOcean.sshCurrent[iCell] - kelvinWaveExactSSH(mpasOcean, iCell, exacttime)) for iCell in 1:mpasOcean.nCells]))")
+	exactSolution = zeros(mpasOcean.nCells, F)
+	for iCell in 1:mpasOcean.nCells
+		exactSolution[iCell] = kelvinWaveExactSSH(mpasOcean, iCell, exacttime)
+	end
+
+	error = norm(exactSolution-mpasOcean.sshCurrent/sqrt(float(mpasOcean.nCells)))
+	print("$rank: L2 error (ssh): $(error)")
 
 	if writeoutput
 		if rank == root

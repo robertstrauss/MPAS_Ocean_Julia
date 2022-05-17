@@ -2,13 +2,15 @@ using MPI
 MPI.Init()
 
 comm = MPI.COMM_WORLD
-rank = MPI.Comm_rank(comm) + 1
+worldrank = MPI.Comm_rank(comm) + 1
 root = 1
 commsize = MPI.Comm_size(comm)
 
 using DelimitedFiles
 using LinearAlgebra
 using BenchmarkTools
+import Plots
+import Dates
 
 
 CODE_ROOT = pwd() * "/"#../"
@@ -46,7 +48,7 @@ end
 
 nCellsX = 64
 fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
-		       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x")
+		       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=100)
 
 lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
 lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
@@ -58,7 +60,7 @@ nsteps = ncycles*halowidth
 
 
 trials = Int(floor(log2(commsize)))
-if rank == root
+if worldrank == root
 	println("running $trials trials")
 end
 trialprocs = 2 .^collect(1:trials)
@@ -66,20 +68,20 @@ trialmeans = zeros(trials)
 
 for i in 1:trials
 	nprocs = trialprocs[i]
-	splitcomm = MPI.Comm_split(comm, Int(rank>nprocs), rank) # only use the necessary ranks for this trial
-	if rank <= nprocs
+	splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
+	if worldrank <= nprocs
 
 		nx, ny = rectangularfactor(nprocs)
 
-		if rank == root
+		if worldrank == root
 			println("dividing $nCellsX x $nCellsX ocean among $nprocs processes with $nx x $ny grid")
 		end
 
 		cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nx, ny)
 
-		myCells = cellsInChunk[rank] # cellsedgesvertices[1]
-		myEdges = edgesInChunk[rank] # cellsedgesvertices[2]
-		myVertices = verticesInChunk[rank] # cellsedgesvertices[3]
+		myCells = cellsInChunk[worldrank] # cellsedgesvertices[1]
+		myEdges = edgesInChunk[worldrank] # cellsedgesvertices[2]
+		myVertices = verticesInChunk[worldrank] # cellsedgesvertices[3]
 
 		mpasOcean = mpas_subset(fullOcean, myCells, myEdges, myVertices)
 
@@ -87,11 +89,11 @@ for i in 1:trials
 
 
 		# MPI.Barrier(comm)
-		# if rank == root
+		# if worldrank == root
 		# 	println("kelvin wave initial condition set")
 		# end
 
-		if rank == root
+		if worldrank == root
 			println("now simulating for $nsteps steps, communicating every $halowidth steps")
 		end
 
@@ -109,7 +111,7 @@ for i in 1:trials
 				end
 				exacttime += halowidth*$mpasOcean.dt
 
-				update_halos!($splitcomm, rank, $mpasOcean, $cellsFromChunk, $cellsToChunk, $myCells, $myEdges, $myVertices)
+				update_halos!($splitcomm, worldrank, $mpasOcean, $cellsFromChunk, $cellsToChunk, $myCells, $myEdges, $myVertices)
 			end
 		end samples=1 setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
 
@@ -124,7 +126,7 @@ for i in 1:trials
 		#
 
 		trialmeans[i] = mean(bench.times)
-		if rank == root
+		if worldrank == root
 			println("$(bench.times) ns")
 		end
 	end
@@ -133,6 +135,10 @@ for i in 1:trials
 end
 
 
-if rank == root
-	plot(trialprocs, trialmeans)
+if worldrank == root
+	pl = Plots.plot(trialprocs, trialmeans, xlabel="number of processors", ylabel="time (ns)",
+			title="scaling of distributed simulation of $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean kelvin wave for $nsteps steps, MPI every $halowidth",
+			titlefontsize=7)
+	mkpath("/tmp/rstrauss-julia/")
+	Plots.savefig(pl, "/tmp/rstrauss/mpas-julia/scalingtest_$(Dates.now()).png")
 end

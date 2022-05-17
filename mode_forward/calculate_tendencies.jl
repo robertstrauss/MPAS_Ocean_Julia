@@ -5,36 +5,9 @@ include("../mode_init/MPAS_Ocean.jl")
 
 ### CPU tendency calculation
 
-<<<<<<< HEAD
-function calculate_normal_velocity_tendency_threads!(mpasOcean::MPAS_Ocean)
-    Threads.@threads for iEdge in 1:mpasOcean.nEdges
-    	mpasOcean.normalVelocityTendency[iEdge] = 0
-        if mpasOcean.boundaryEdge[iEdge] == 0
-            # gravity term: take gradient of sshCurrent across edge
-			cell1Index = mpasOcean.cellsOnEdge[1,iEdge]
-			cell2Index = mpasOcean.cellsOnEdge[2,iEdge]
-
-            if cell1Index != 0 && cell2Index != 0
-                mpasOcean.normalVelocityTendency[iEdge] = mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
-            end
-
-            # coriolis term
-            for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
-                eoe = mpasOcean.edgesOnEdge[i,iEdge]
-
-                if eoe != 0
-                        mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
-                end
-            end
-        end
-    end
-end
-
 function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
-    # mpasOcean.normalVelocityTendency[:] .= 0
-
-    @inbounds @fastmath for iEdge::Int64 in 1:mpasOcean.nEdges
-		mpasOcean.normalVelocityTendency[iEdge] = 0
+    @inbounds @fastmath Threads.@threads for iEdge::Int64 in 1:mpasOcean.nEdges
+		mpasOcean.normalVelocityTendency[iEdge,:] .= 0
 
         if mpasOcean.boundaryEdge[iEdge] == 0
             # gravity term: take gradient of sshCurrent across edge
@@ -42,7 +15,7 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
 			cell2Index = mpasOcean.cellsOnEdge[2,iEdge]
 
             if cell1Index != 0 && cell2Index != 0
-                mpasOcean.normalVelocityTendency[iEdge] = mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
+                mpasOcean.normalVelocityTendency[iEdge,:] .= mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
             end
 
             # coriolis term
@@ -50,30 +23,11 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
                 eoe = mpasOcean.edgesOnEdge[i,iEdge]
 
                 if eoe != 0
-                        mpasOcean.normalVelocityTendency[iEdge] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe] * mpasOcean.fEdge[eoe]
-=======
-function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
-    mpasOcean.normalVelocityTendency[:,:] .= 0
-
-    for iEdge in 1:mpasOcean.nEdges
-        # gravity term
-        cell1Index, cell2Index = mpasOcean.cellsOnEdge[:,iEdge]
-
-        if cell1Index != 0 && cell2Index != 0
-            # gradient of ssh across edge
-            mpasOcean.normalVelocityTendency[iEdge,:] .= mpasOcean.gravity * ( mpasOcean.sshCurrent[cell1Index] - mpasOcean.sshCurrent[cell2Index] ) / mpasOcean.dcEdge[iEdge]
-        end
-
-        # coriolis term
-        for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
-            eoe = mpasOcean.edgesOnEdge[i,iEdge]
-
-            if eoe != 0
-                for k in 1:mpasOcean.maxLevelEdgeTop[iEdge]+1
-                    mpasOcean.normalVelocityTendency[iEdge,k] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe,k] * mpasOcean.fEdge[eoe]
-                    mpasOcean.normalVelocityTendency[iEdge,k] *= mpasOcean.edgeMask[iEdge,k]
->>>>>>> layers
-                end
+	                for k in 1:mpasOcean.maxLevelEdgeTop[iEdge]+1
+	                    mpasOcean.normalVelocityTendency[iEdge,k] += mpasOcean.weightsOnEdge[i,iEdge] * mpasOcean.normalVelocityCurrent[eoe,k] * mpasOcean.fEdge[eoe]
+	                    mpasOcean.normalVelocityTendency[iEdge,k] *= mpasOcean.edgeMask[iEdge,k]
+	                end
+				end
             end
         end
     end
@@ -96,7 +50,6 @@ function update_normal_velocity_by_tendency_loop!(mpasOcean::MPAS_Ocean)
 end
 
 function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
-
     @inbounds @fastmath Threads.@threads for iCell in 1:mpasOcean.nCells
     	mpasOcean.sshTendency[iCell] = 0
         # sum flux through each edge of cell

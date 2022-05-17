@@ -15,8 +15,8 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
 #     boundaryConditions::Array{BoundaryCondition}
 
     # prognostic variables
-    sshCurrent::Array{F,2}   #where F <: AbstractFloat # sea surface height (cell-centered)
-    sshTendency::Array{F,2}   #where F <: AbstractFloat # tendency (cell-centered)
+    sshCurrent::Array{F,1}   #where F <: AbstractFloat # sea surface height (cell-centered)
+    sshTendency::Array{F,1}   #where F <: AbstractFloat # tendency (cell-centered)
 
     normalVelocityCurrent::Array{F,2}   #where F <: AbstractFloat # group velocity normal to mesh edges (edge-centered)
     normalVelocityTendency::Array{F,2}   #where F <: AbstractFloat # tendency (edge-centered)
@@ -49,7 +49,8 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
     fCell::Array{F,1}   #where F <: AbstractFloat # coriolis parameter (cell-centered)
     maxLevelCell::Array{I,1}
     gridSpacing::Array{F,1}   #where F <: AbstractFloat
-    boundaryCell::Array{I,1}  # 0 for inner cells, 1 for boundary cells (cell-centered)
+    boundaryCell::Array{I,2}  # 0 for inner cells, 1 for boundary cells (cell-centered)
+	cellMask::Array{I,2}
 
 
     ## edge-centered arrays
@@ -67,8 +68,8 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
     weightsOnEdge::Array{F,2}   #where F <: AbstractFloat # coeffecients of norm vels of surrounding edges in linear combination to compute tangential velocity
     maxLevelEdgeTop::Array{I,1}
     maxLevelEdgeBot::Array{I,1}
-    boundaryEdge::Array{I,1}
-    edgeMask::Array{I,1}
+    boundaryEdge::Array{I,2}
+    edgeMask::Array{I,2}
 
 
     ## vertex-centered arrays
@@ -86,8 +87,8 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
     kiteAreasOnVertex::Array{F}   #where F <: AbstractFloat
     maxLevelVertexTop::Array{I}
     maxLevelVertexBot::Array{I}
-    boundaryVertex::Array{I}
-    vertexMask::Array{UInt8}
+    boundaryVertex::Array{I,2}
+    vertexMask::Array{I,2}
 
 
 
@@ -128,6 +129,7 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
     function MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
                         base_mesh_file_name = "base_mesh.nc",
                         mesh_file_name = "mesh.nc";
+						nvlevels =1,
                         periodicity = "Periodic")# where F<:AbstractFloat
         mpasOcean = new()
 

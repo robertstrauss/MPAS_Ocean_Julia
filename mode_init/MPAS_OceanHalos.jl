@@ -256,7 +256,6 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :fCell,
         :maxLevelCell,
         :gridSpacing,
-        :boundaryCell,
         :nEdgesOnCell,
     ]
     cell2dFields = [
@@ -265,19 +264,19 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :verticesOnCell,
     ]
     cell2djiFields = [
-	:edgeSignOnCell,
-        # :kiteIndexOnCell,
+		:edgeSignOnCell,
+        :boundaryCell,
+		:cellMask,
     ]
     cellIndexFields = [
-	:cellsOnCell,
-	:cellsOnEdge,
-	:cellsOnVertex
+		:cellsOnCell,
+		:cellsOnEdge,
+		:cellsOnVertex
     ]
 
+
+
     edgeCenteredFields = [
-        :normalVelocityCurrent,
-        :normalVelocityTendency,
-        # :nEdges,
         :xEdge,
         :yEdge,
         :dvEdge,
@@ -286,47 +285,53 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :angleEdge,
         :maxLevelEdgeTop,
         :maxLevelEdgeBot,
-        :boundaryEdge,
-        :edgeMask,
         :nEdgesOnEdge,
     ]
     edge2dFields = [
         :cellsOnEdge,
         :edgesOnEdge,
         :verticesOnEdge,
-	:weightsOnEdge,
+		:weightsOnEdge,
     ]
+	edge2djiFields = [
+        :normalVelocityCurrent,
+        :normalVelocityTendency,
+		:boundaryEdge,
+		:edgeMask,
+	]
     edgeIndexFields = [
-	:edgesOnCell,
-	:edgesOnEdge,
-	:edgesOnVertex,
+		:edgesOnCell,
+		:edgesOnEdge,
+		:edgesOnVertex,
     ]
 
+
+
+
     vertexCenteredFields = [
-        # :nVertices,
         :latVertex,
         :lonVertex,
         :xVertex,
         :yVertex,
-        # :vertexDegree,
         :fVertex,
         :areaTriangle,
-        # :kiteAreasOnVertex,
         :maxLevelVertexTop,
         :maxLevelVertexBot,
-        :boundaryVertex,
     ]
     vertex2dFields = [
         :cellsOnVertex,
         :edgesOnVertex,
     ]
     vertex2djiFields = [
-	:edgeSignOnVertex,
+		:edgeSignOnVertex,
+        :boundaryVertex,
+		:vertexMask
     ]
     vertexIndexFields = [
-	:verticesOnCell,
-	:verticesOnEdge,
+		:verticesOnCell,
+		:verticesOnEdge,
     ]
+
 
     function indexMap(iGlobal, indices)
 		iLocals = findall(ind -> ind==iGlobal, indices)
@@ -342,38 +347,44 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(cells)])
     end
     for field in cell2dFields
-	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(cells)])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(cells)])
     end
     for field in cell2djiFields
-	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(cells),:])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(cells),:])
     end
     for field in cellIndexFields
-	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(cells)), getfield(mpasSubOcean, field)))
+		setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(cells)), getfield(mpasSubOcean, field)))
     end
     mpasSubOcean.nCells = length(cells)
+
 
     for field in edgeCenteredFields
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges)])
     end
     for field in edge2dFields
-	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(edges)])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(edges)])
+    end
+	for field in edge2djiFields
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges),:])
     end
     for field in edgeIndexFields
-	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(edges)), getfield(mpasSubOcean, field)))
+		setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(edges)), getfield(mpasSubOcean, field)))
     end
     mpasSubOcean.nEdges = length(edges)
+
+
 
     for field in vertexCenteredFields
         setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(vertices)])
     end
     for field in vertex2dFields
-	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(vertices)])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(vertices)])
     end
     for field in vertex2djiFields
-	setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(vertices),:])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(vertices),:])
     end
     for field in vertexIndexFields
-	setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(vertices)), getfield(mpasSubOcean, field)))
+		setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(vertices)), getfield(mpasSubOcean, field)))
     end
     mpasSubOcean.nVertices = length(vertices)
 

@@ -24,7 +24,7 @@ include(CODE_ROOT * "mode_init/exactsolutions.jl")
 include(CODE_ROOT * "mode_forward/update_halos.jl")
 include(CODE_ROOT * "mode_forward/time_steppers.jl")
 
-include(CODE_ROOT * "visualization.jl")
+# include(CODE_ROOT * "visualization.jl")
 
 
 

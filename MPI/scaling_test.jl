@@ -74,7 +74,7 @@ for i in 1:trials
 		nx, ny = rectangularfactor(nprocs)
 
 		if worldrank == root
-			println("dividing $nCellsX x $nCellsX x $(mpasOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
+			println("dividing $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
 		end
 
 		cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nx, ny)

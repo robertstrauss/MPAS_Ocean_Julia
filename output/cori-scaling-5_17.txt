@@ -1,0 +1,26 @@
+running 6 trials
+dividing 64 x 64 x 100 ocean among 2 processes with 1 x 2 grid
+now simulating for 25 steps, communicating every 5 steps
+[6.997029351e9] ns
+error (max, l2): 0.5293542415632764, 0.1136993422963794
+dividing 64 x 64 x 100 ocean among 4 processes with 2 x 2 grid
+now simulating for 25 steps, communicating every 5 steps
+[3.918953928e9] ns
+error (max, l2): 0.5293542415632764, 0.1518652995044844
+dividing 64 x 64 x 100 ocean among 8 processes with 2 x 4 grid
+now simulating for 25 steps, communicating every 5 steps
+[2.509213951e9] ns
+error (max, l2): 0.5293542415632764, 0.14619629419634578
+dividing 64 x 64 x 100 ocean among 16 processes with 4 x 4 grid
+now simulating for 25 steps, communicating every 5 steps
+[1.646721549e9] ns
+error (max, l2): 0.5293542415632764, 0.19296977347290561
+dividing 64 x 64 x 100 ocean among 32 processes with 4 x 8 grid
+now simulating for 25 steps, communicating every 5 steps
+[1.147424507e9] ns
+error (max, l2): 0.5293542415632764, 0.21340187617465
+dividing 64 x 64 x 100 ocean among 64 processes with 8 x 8 grid
+now simulating for 25 steps, communicating every 5 steps
+[7.82603561e8] ns
+error (max, l2): 0.5293542415632764, 0.26471086006280053
+

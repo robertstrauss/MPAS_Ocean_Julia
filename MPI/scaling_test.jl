@@ -74,7 +74,7 @@ for i in 1:trials
 		nx, ny = rectangularfactor(nprocs)
 
 		if worldrank == root
-			println("dividing $nCellsX x $nCellsX ocean among $nprocs processes with $nx x $ny grid")
+			println("dividing $nCellsX x $nCellsX x $(mpasOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
 		end
 
 		cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nx, ny)
@@ -115,20 +115,24 @@ for i in 1:trials
 			end
 		end samples=1 setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
 
-		# exactssh = zero(mpasOcean.sshCurrent)
-		# for iCell in 1:mpasOcean.nCells
-		# 	exactssh[iCell] = kelvinWaveExactSSH(mpasOcean, iCell, exacttime)
-		# end
-		#
-		# difference = mpasOcean.sshCurrent .- exactssh
-		# MaxErrorNorm = norm(difference, Inf)
-		# L2ErrorNorm = norm(difference/sqrt(float(mpasOcean.nCells)))
-		#
-
 		trialmeans[i] = mean(bench.times)
 		if worldrank == root
 			println("$(bench.times) ns")
 		end
+
+		exactssh = zero(mpasOcean.sshCurrent)
+		for iCell in 1:mpasOcean.nCells
+			exactssh[iCell] = kelvinWaveExactSSH(mpasOcean, iCell, exacttime)
+		end
+
+		difference = mpasOcean.sshCurrent .- exactssh
+		MaxErrorNorm = norm(difference, Inf)
+		L2ErrorNorm = norm(difference/sqrt(float(mpasOcean.nCells)))
+
+		if worldrank == root
+			println("error (max, l2): $MaxErrorNorm, $L2ErrorNorm")
+		end
+
 	end
 	MPI.free(splitcomm)
 	MPI.Barrier(comm)
@@ -139,6 +143,7 @@ if worldrank == root
 	pl = Plots.plot(trialprocs, trialmeans, xlabel="number of processors", ylabel="time (ns)",
 			title="scaling of distributed simulation of $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean kelvin wave for $nsteps steps, MPI every $halowidth",
 			titlefontsize=7)
-	mkpath("/tmp/rstrauss-julia/")
-	Plots.savefig(pl, "/tmp/rstrauss/mpas-julia/scalingtest_$(Dates.now()).png")
+	savedir = "/tmp/rstrauss/mpas-julia"
+	mkpath(savedir)
+	Plots.savefig(pl, "$savedir/scalingtest_$(Dates.now()).png")
 end

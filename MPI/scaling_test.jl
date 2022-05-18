@@ -122,7 +122,7 @@ for i in 1:trials
 
 		exactssh = zero(mpasOcean.sshCurrent)
 		for iCell in 1:mpasOcean.nCells
-			exactssh[iCell] = kelvinWaveExactSSH(mpasOcean, iCell, exacttime)
+			exactssh[iCell,:] = kelvinWaveExactSSH(mpasOcean, iCell, exacttime)
 		end
 
 		difference = mpasOcean.sshCurrent .- exactssh

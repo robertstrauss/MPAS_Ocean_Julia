@@ -140,10 +140,18 @@ end
 
 
 if worldrank == root
-	pl = Plots.plot(trialprocs, trialmeans, xlabel="number of processors", ylabel="time (ns)",
+
+	fpath = "/global/cscratch1/sd/rstrauss/scaling_test_1/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(nsteps)"
+	fname = fpath * "/$(Dates.now()).txt"
+	mkpath(fpath)
+	open(fname, "w") do io
+		writedlm(io, [trialprocs, trialmeans], ',')
+	end
+#=	pl = Plots.plot(trialprocs, trialmeans, xlabel="number of processors", ylabel="time (ns)",
 			title="scaling of distributed simulation of $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean kelvin wave for $nsteps steps, MPI every $halowidth",
 			titlefontsize=7)
 	savedir = "/tmp/rstrauss/mpas-julia"
 	mkpath(savedir)
 	Plots.savefig(pl, "$savedir/scalingtest_$(Dates.now()).png")
+	=#
 end

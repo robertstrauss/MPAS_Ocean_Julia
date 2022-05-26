@@ -54,7 +54,7 @@ lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
 lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
 
 halowidth = 5
-ncycles = 5
+ncycles = 2
 nsteps = ncycles*halowidth
 
 

@@ -5,7 +5,6 @@ import Base.Threads
 
 # include("Namelist.jl")
 include("fixAngleEdge.jl")
-include("BoundaryCondition.jl")
 include("MPAS_Ocean.jl")
 
 mutable struct MPAS_OceanHalos
@@ -67,70 +66,45 @@ mutable struct MPAS_OceanHalos
 end
 
 function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
-	cellsInChunk = []
-	edgesInChunk = []
-	verticesInChunk = []
 
-        innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
-	# println("innercell ", innerCells)
-	# if iChunk == "all"
-		cellsFromChunk = collect([ [] for i in 1:length(innerCells)])
-		cellsToChunk = collect([ [] for i in 1:length(innerCells)])
-	# else
-		# cellsFromChunk = [[]]
-		# cellsToChunk = [[]]
-	# end
+    innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
 
-		lXedge = maximum(mpasOcean.xEdge) - minimum(mpasOcean.xEdge)
-		lYedge = maximum(mpasOcean.yEdge) - minimum(mpasOcean.yEdge)
+	lXedge = maximum(mpasOcean.xEdge) - minimum(mpasOcean.xEdge)
+	lYedge = maximum(mpasOcean.yEdge) - minimum(mpasOcean.yEdge)
 
+	chunkWidth = lXedge/nXChunks
+	chunkHeight = lYedge/nYChunks
 
-		chunkWidth = lXedge/nXChunks
-		chunkHeight = lYedge/nYChunks
+    for iCell in 1:mpasOcean.nCells
+        append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
+                           Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
+    end
 
-        for iCell in 1:mpasOcean.nCells
-            append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
-                               Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
-        end
-
-	# for i in 1:length(innerCells)
-	# 	println("undef in ic? ", undef in innerCells[i])
-        # end
-        # put halo borders around chunks
-	# if iChunk == "all"
-	# haloCells = collect([ [] for i in 1:length(innerCells)])
-	# else
-		# haloCells = [[]]
-	# end
-	# println(innerCells)
-
+	cellsFromChunk = collect([ [] for i in 1:length(innerCells)])
+	cellsToChunk = collect([ [] for i in 1:length(innerCells)])
+	# cellsInChunk = []
+	# edgesInChunk = []
+	# verticesInChunk = []
 	listtype = Vector{Any}
-
 	haloCells = Array{listtype}(undef, length(innerCells))
 	cellsInChunk = Array{listtype}(undef, length(innerCells))
 	edgesInChunk = Array{listtype}(undef, length(innerCells))
 	verticesInChunk = Array{listtype}(undef, length(innerCells))
-	Threads.@threads for i in 1:length(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
+	Threads.@threads for i in 1:length(innerCells)
 	    chunk = innerCells[i]
-	    # println(undef in innerCells[i])
-	    # println(undef in chunk)
-            halo = grow_halo(mpasOcean, chunk, haloWidth)
+        halo = grow_halo(mpasOcean, chunk, haloWidth)
 	    haloCells[i] = halo
 
-            cells    = union(chunk, halo)
-            edges    = collect(Set(mpasOcean.edgesOnCell[:,cells]))
-            vertices = collect(Set(mpasOcean.verticesOnCell[:,cells]))
+        cells    = union(chunk, halo)
+        edges    = collect(Set(mpasOcean.edgesOnCell[:,cells]))
+        vertices = collect(Set(mpasOcean.verticesOnCell[:,cells]))
 
 	    cellsInChunk[i] = cells
 	    edgesInChunk[i] = edges
 	    verticesInChunk[i] = vertices
-	    # append!(cellsInChunk, [cells])
-	    # append!(edgesInChunk, [edges])
-	    # append!(verticesInChunk, [vertices])
 
-        end
+    end
 
-	# println("seperated regions, finding overlap. $(edgesInChunk)")
 
 	Threads.@threads for i in 1:length(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
 	    chunk = innerCells[i]
@@ -138,24 +112,20 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	    for (j, otherchunk) in enumerate(innerCells)
 		    if j != i
 			    # if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
-		       	    localcells = findall(iCell -> iCell in otherchunk, cells)
+	       	    localcells = findall(iCell -> iCell in otherchunk, cells)
 			    order = sortperm(cellsInChunk[i][localcells]) # sort relative to global index so local index order is consistent
 			    append!(cellsFromChunk[i], [(j, localcells[order])])
 		    end
 	    end
 	    for (j, otherhalo) in enumerate(haloCells)
 		    if j != i
-			# if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
-			localcells = findall(iCell -> iCell in otherhalo, chunk)
-			order = sortperm(cellsInChunk[i][localcells])
-			append!(cellsToChunk[i], [(j, localcells[order])])
+				# if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
+				localcells = findall(iCell -> iCell in otherhalo, chunk)
+				order = sortperm(cellsInChunk[i][localcells])
+				append!(cellsToChunk[i], [(j, localcells[order])])
 		    end
 	    end
 	end
-
-	# if iChunk != "all"
-		# cellsFromChunk = dropdims(cellsFromChunk, dims=1)
-	# end
 
 	return cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk
 end
@@ -223,12 +193,12 @@ function grow_halo(mpasOcean, cells, radius)
 
     for i in 1:radius
         for iCell in outerCells
-	    if iCell != 0
+	    	if iCell != 0
                 for jCell in mpasOcean.cellsOnCell[:,iCell]
-			if ! (jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells) && !(jCell == 0)
+					if ! (jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells) && !(jCell == 0)
                         append!(newCells, jCell)
                     end
-		end
+				end
             end
         end
         if i > 1

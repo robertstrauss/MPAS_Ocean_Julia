@@ -39,12 +39,12 @@ function update_halos!(comm, rank, mpasOcean, cellsFromChunk, cellsToChunk, myCe
 	if rank == root
 	# 	println("halo buffer before: ", halobuffernv[1][1:10])
 	end
-	MPI.Barrier(comm)
+	# MPI.Barrier(comm)
 	MPI.Waitall!([recreqs..., sendreqs...])
 	if rank == root
 	# 	println("halo buffer after: ", halobuffernv[1][1:10])
 	end
-	MPI.Barrier(comm)
+	# MPI.Barrier(comm)
 	for (i, (_, localcells)) in enumerate(cellsFromChunk[rank])
 		mpasOcean.sshCurrent[localcells] = halobufferssh[i]
 		localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells]))

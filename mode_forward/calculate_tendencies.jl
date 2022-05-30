@@ -6,8 +6,8 @@ include("../mode_init/MPAS_Ocean.jl")
 ### CPU tendency calculation
 
 function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
-    @inbounds @fastmath Threads.@threads for iEdge::Int64 in 1:mpasOcean.nEdges
-		mpasOcean.normalVelocityTendency[iEdge,:] .= 0
+    @inbounds @fastmath for iEdge::Int64 in 1:mpasOcean.nEdges # Threads.@threads
+		mpasOcean.normalVelocityTendency[iEdge,:] .= 0.0
 
         if mpasOcean.boundaryEdge[iEdge] == 0
             # gravity term: take gradient of sshCurrent across edge
@@ -50,10 +50,10 @@ function update_normal_velocity_by_tendency_loop!(mpasOcean::MPAS_Ocean)
 end
 
 function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
-    @inbounds @fastmath Threads.@threads for iCell in 1:mpasOcean.nCells
-    	mpasOcean.sshTendency[iCell] = 0
+    @inbounds @fastmath for iCell in 1:mpasOcean.nCells # Threads.@threads
+    	mpasOcean.sshTendency[iCell] = 0.0
         # sum flux through each edge of cell
-        netflux = 0
+        netflux = 0.0
         for i::Int64 in 1:mpasOcean.nEdgesOnCell[iCell]
             edgeID = mpasOcean.edgesOnCell[i,iCell]
             neighborCellID = mpasOcean.cellsOnCell[i,iCell]

@@ -4,7 +4,6 @@ import CUDA
 
 # include("Namelist.jl")
 include("fixAngleEdge.jl")
-include("BoundaryCondition.jl")
 
 
 I = Int64
@@ -93,8 +92,8 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
 
 
     nVertLevels::Integer
-    layerThickness::Array{F}
-    layerThicknessEdge::Array{F}
+    layerThickness::Array{F,2}
+    layerThicknessEdge::Array{F,2}
 
 
 #     ExactSolutionParameters::Array{F}   #where F <: AbstractFloat

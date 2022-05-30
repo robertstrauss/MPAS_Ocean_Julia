@@ -66,16 +66,23 @@ end
 trialprocs = 2 .^collect(1:trials)
 trialmeans = zeros(trials)
 
+
+function rootprint(str)
+	if worldrank == root
+		println(str)
+	end
+end
+
 for i in 1:trials
 	nprocs = trialprocs[i]
+	rootprint("splitting com")
 	splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
 	if worldrank <= nprocs
 
+		rootprint("doing rect facto")
 		nx, ny = rectangularfactor(nprocs)
 
-		if worldrank == root
-			println("dividing $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
-		end
+		rootprint("dividing $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
 
 		cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nx, ny)
 
@@ -85,6 +92,7 @@ for i in 1:trials
 
 		mpasOcean = mpas_subset(fullOcean, myCells, myEdges, myVertices)
 
+		rootprint("kelving wave generator")
 		kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(mpasOcean, lateralProfilePeriodic)
 
 
@@ -93,9 +101,7 @@ for i in 1:trials
 		# 	println("kelvin wave initial condition set")
 		# end
 
-		if worldrank == root
-			println("now simulating for $nsteps steps, communicating every $halowidth steps")
-		end
+		rootprint("now simulating for $nsteps steps, communicating every $halowidth steps")
 
 		bench = @benchmark begin
 			# simulate
@@ -116,24 +122,23 @@ for i in 1:trials
 		end samples=1 setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
 
 		trialmeans[i] = mean(bench.times)
-		if worldrank == root
-			println("$(bench.times) ns")
-		end
+		rootprint("$(bench.times) ns")
 
+		rootprint("setting up exact sol")
 		exactssh = zero(mpasOcean.sshCurrent)
 		for iCell in 1:mpasOcean.nCells
 			exactssh[iCell,:] .= kelvinWaveExactSSH(mpasOcean, iCell, nsteps*mpasOcean.dt)
 		end
 
+		rootprint("calculating error")
 		difference = mpasOcean.sshCurrent .- exactssh
 		MaxErrorNorm = norm(difference, Inf)
 		L2ErrorNorm = norm(difference/sqrt(float(mpasOcean.nCells)))
 
-		if worldrank == root
-			println("error (max, l2): $MaxErrorNorm, $L2ErrorNorm")
-		end
+		rootprint("error (max, l2): $MaxErrorNorm, $L2ErrorNorm")
 
 	end
+	rootprint("freeing splitcomm")
 	MPI.free(splitcomm)
 	MPI.Barrier(comm)
 end

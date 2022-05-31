@@ -17,6 +17,8 @@ end
 
 
 using DelimitedFiles
+using DataFrames
+using CSV
 using LinearAlgebra
 using BenchmarkTools
 import Plots
@@ -55,35 +57,24 @@ end
 
 
 
-nCellsX = 64
-fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
-		       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=100)
-
-lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
-lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
-
-
-rootprint("preparing kelvin wave")
-kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
-
-
-halowidth = 5
-ncycles = 2
-nsteps = ncycles*halowidth
-
-
-ntests = Int(floor(log2(commsize))) # number of levels (counts of processors) to run for
-nsamples = 3 # times to rerun sim for each level
-proccounts = 2 .^collect(1:ntests)
-rootprint("running tests for $prouccounts counts of processors")
-wctime = zeros((ntests,nsamples))
 
 
 partitiondir = CODE_ROOT * "scaling_test/graphparts/"
+function runtests(proccounts; nsamples=3, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
+	rootprint("running tests for $proccounts counts of processors with $nsamples samples per test")
 
-function runtrials()
-	for itest in 1:ntests
-		nprocs = proccounts[itest]
+
+	fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
+			       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels)
+	rootprint("preparing kelvin wave")
+	lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
+	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
+	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
+
+	df = DataFrame(procs=Int[], time1=Float64[], time2=Float64[], time3=Float64[], max_error=Float64[], l2_error=Float64[])
+	# df.procs = proccounts
+	# wctime = zeros((ntests,nsamples))
+	for nprocs in proccounts
 		rootprint("splitting com")
 		splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
 		if worldrank <= nprocs
@@ -96,6 +87,7 @@ function runtrials()
 			# partitions = dropdims(readdlm(partitionfile), dims=2)
 			# mycells = findall(proc -> proc == worldrank-1, partitions)
 
+			rootprint("dividing  $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
 			cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nx, ny)
 
 
@@ -112,8 +104,9 @@ function runtrials()
 			# 	println("kelvin wave initial condition set")
 			# end
 
-			rootprint("now simulating for $nsteps steps, communicating every $halowidth steps")
+			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")
 
+			sampletimes = [0.0, 0.0, 0.0]
 			exacttime=0; kelvinWaveExactSolution!(mpasOcean, exacttime)
 			for jsample in 1:nsamples
 				sampletime = @elapsed begin
@@ -133,15 +126,16 @@ function runtrials()
 						update_halos!(splitcomm, worldrank, mpasOcean, cellsFromChunk, cellsToChunk, myCells, myEdges, myVertices)
 					end
 				end
-				wctime[itest, jsample] = sampletime
+				sampletimes[jsample] = sampletime
+				# df[df.procs .== nprocs, "time $jsample"] = sampletime
+				# wctime[itest, jsample] = sampletime
 			end # samples=1 setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
 
-			rootprint("$(wctime[itest,:]) ns")
 
 			rootprint("setting up exact sol")
 			exactssh = zero(mpasOcean.sshCurrent)
 			for iCell in 1:mpasOcean.nCells
-				exactssh[iCell,:] .= kelvinWaveExactSSH(mpasOcean, iCell, nsteps*mpasOcean.dt)
+				exactssh[iCell,:] .= kelvinWaveExactSSH(mpasOcean, iCell, halowidth*ncycles*mpasOcean.dt)
 			end
 
 			rootprint("calculating error")
@@ -149,7 +143,9 @@ function runtrials()
 			MaxErrorNorm = norm(difference, Inf)
 			L2ErrorNorm = norm(difference/sqrt(float(mpasOcean.nCells)))
 
-			rootprint("error (max, l2): $MaxErrorNorm, $L2ErrorNorm")
+			push!(df, [nprocs, sampletimes[1], sampletimes[2], sampletimes[3], MaxErrorNorm, L2ErrorNorm])
+			# rootprint("error (max, l2): $MaxErrorNorm, $L2ErrorNorm")
+			rootprint(df[df.procs .<= nprocs, :])
 
 		end
 		rootprint("freeing splitcomm")
@@ -159,13 +155,14 @@ function runtrials()
 
 
 	if worldrank == root
-
-		fpath = "/global/cscratch1/sd/rstrauss/scaling_test_1/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(nsteps)"
-		fname = fpath * "/$(Dates.now()).txt"
+		fpath = CODE_ROOT * "output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(halowidth*ncycles)"
 		mkpath(fpath)
-		open(fname, "w") do io
-			writedlm(io, [trialprocs, trialmeans], ',')
-		end
+		fname = fpath * "/$(Dates.now()).txt"
+		#=open(fname, "w") do io
+			writedlm(io, [proccounts, wctime], ',')
+		end=#
+		CSV.write(fname, df)
+		rootprint("wrote results to $fname")
 	#=	pl = Plots.plot(trialprocs, trialmeans, xlabel="number of processors", ylabel="time (ns)",
 				title="scaling of distributed simulation of $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean kelvin wave for $nsteps steps, MPI every $halowidth",
 				titlefontsize=7)
@@ -174,4 +171,11 @@ function runtrials()
 		Plots.savefig(pl, "$savedir/scalingtest_$(Dates.now()).png")
 		=#
 	end
+
+	return
 end
+
+
+proccounts = 2 .^collect(1:log2(commsize))
+xcells = ARGS[1]
+runtests(proccounts; nCellsX=xcells)

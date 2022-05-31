@@ -60,7 +60,7 @@ end
 
 
 partitiondir = CODE_ROOT * "scaling_test/graphparts/"
-function runtests(proccounts; nsamples=3, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
+function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
 	rootprint("running tests for $proccounts counts of processors with $nsamples samples per test")
 
 
@@ -71,7 +71,7 @@ function runtests(proccounts; nsamples=3, nCellsX=64, halowidth=5, ncycles=2, nv
 	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
 	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
 
-	df = DataFrame(procs=Int[], time1=Float64[], time2=Float64[], time3=Float64[], max_error=Float64[], l2_error=Float64[])
+	df = DataFrame(names=["procs", collect(["time$i" for i in 1:nsamples])..., "max_error", "l2_error"])
 	# df.procs = proccounts
 	# wctime = zeros((ntests,nsamples))
 	for nprocs in proccounts
@@ -106,10 +106,10 @@ function runtests(proccounts; nsamples=3, nCellsX=64, halowidth=5, ncycles=2, nv
 
 			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")
 
-			sampletimes = [0.0, 0.0, 0.0]
+			sampletimes = zeros(nsamples)
 			exacttime=0; kelvinWaveExactSolution!(mpasOcean, exacttime)
 			for jsample in 1:nsamples
-				sampletime = @elapsed begin
+				sampletimes[jsample] = @elapsed begin
 					# simulate
 					for f in 1:ncycles
 						for h in 1:halowidth
@@ -126,7 +126,6 @@ function runtests(proccounts; nsamples=3, nCellsX=64, halowidth=5, ncycles=2, nv
 						update_halos!(splitcomm, worldrank, mpasOcean, cellsFromChunk, cellsToChunk, myCells, myEdges, myVertices)
 					end
 				end
-				sampletimes[jsample] = sampletime
 				# df[df.procs .== nprocs, "time $jsample"] = sampletime
 				# wctime[itest, jsample] = sampletime
 			end # samples=1 setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
@@ -143,7 +142,7 @@ function runtests(proccounts; nsamples=3, nCellsX=64, halowidth=5, ncycles=2, nv
 			MaxErrorNorm = norm(difference, Inf)
 			L2ErrorNorm = norm(difference/sqrt(float(mpasOcean.nCells)))
 
-			push!(df, [nprocs, sampletimes[1], sampletimes[2], sampletimes[3], MaxErrorNorm, L2ErrorNorm])
+			push!(df, [nprocs, sampletimes..., MaxErrorNorm, L2ErrorNorm])
 			# rootprint("error (max, l2): $MaxErrorNorm, $L2ErrorNorm")
 			rootprint(df[df.procs .<= nprocs, :])
 
@@ -178,4 +177,5 @@ end
 
 proccounts = 2 .^collect(1:log2(commsize))
 xcells = ARGS[1]
-runtests(proccounts; nCellsX=xcells)
+nsamples = ARGS[2]
+runtests(proccounts; nCellsX=xcells, nsamples=nsamples)

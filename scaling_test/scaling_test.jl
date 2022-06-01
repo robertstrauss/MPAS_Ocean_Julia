@@ -71,7 +71,9 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
 	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
 
-	df = DataFrame(names=["procs", collect(["time$i" for i in 1:nsamples])..., "max_error", "l2_error"])
+	df = DataFrame([Int64[], collect([Float64[] for i in 1:nsamples])..., Float64[], Float64[]], ["procs", collect(["time$i" for i in 1:nsamples])..., "max_error", "l2_error"])
+	# rootprint([Int64[], collect([Float64[] for i in 1:nsamples])..., Float64[], Float64[]])
+	# rootprint(["procs", collect(["time$i" for i in 1:nsamples])..., "max_error", "l2_error"])
 	# df.procs = proccounts
 	# wctime = zeros((ntests,nsamples))
 	for nprocs in proccounts
@@ -176,6 +178,6 @@ end
 
 
 proccounts = 2 .^collect(1:log2(commsize))
-xcells = ARGS[1]
-nsamples = ARGS[2]
+xcells = parse(Int64, ARGS[1])
+nsamples = parse(Int64, ARGS[2])
 runtests(proccounts; nCellsX=xcells, nsamples=nsamples)

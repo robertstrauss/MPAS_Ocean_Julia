@@ -57,10 +57,11 @@ end
 
 
 
-
 partitiondir = CODE_ROOT * "scaling_test/graphparts/"
 function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
-	rootprint("running tests for $proccounts counts of processors with $nsamples samples per test")
+	global fname;
+
+	rootprint("running tests for $proccounts counts of processors with $nsamples samples per test of $(halowidth*ncycles) steps each")
 
 
 	fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
@@ -70,17 +71,15 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
 	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
 
-	df = DataFrame([Int64[], collect([Float64[] for i in 1:nsamples])..., Float64[], Float64[]], ["procs", collect(["time$i" for i in 1:nsamples])..., "max_error", "l2_error"])
-	# rootprint([Int64[], collect([Float64[] for i in 1:nsamples])..., Float64[], Float64[]])
-	# rootprint(["procs", collect(["time$i" for i in 1:nsamples])..., "max_error", "l2_error"])
-	# df.procs = proccounts
-	# wctime = zeros((ntests,nsamples))
+	df = DataFrame([Int64[], collect([Float64[] for i in 1:nsamples])...,     collect([Float64[] for i in 1:nsamples])...,     Float64[], Float64[]], 
+		       ["procs", collect(["sim_time$i" for i in 1:nsamples])...,  collect(["mpi_time$i" for i in 1:nsamples])...,  "max_error", "l2_error"])
+
 	for nprocs in proccounts
 		rootprint("splitting com")
 		splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
 		if worldrank <= nprocs
 
-			rootprint("doing rect facto")
+			rootprint("doing rect factor")
 			nx, ny = rectangularfactor(nprocs)
 
 			# partitionfile = partitiondir * "graph.info.part.$nprocs"
@@ -107,12 +106,13 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 
 			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")
 
-			sampletimes = zeros(nsamples)
+			sampletimessim = zeros(nsamples)
+			sampletimesmpi = zeros(nsamples)
 			exacttime=0; kelvinWaveExactSolution!(mpasOcean, exacttime)
 			for jsample in 1:nsamples
-				sampletimes[jsample] = @elapsed begin
+				for f in 1:ncycles
 					# simulate
-					for f in 1:ncycles
+					sampletimessim[jsample] += @elapsed begin
 						for h in 1:halowidth
 							calculate_normal_velocity_tendency!(mpasOcean)
 							update_normal_velocity_by_tendency!(mpasOcean)
@@ -123,13 +123,12 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 							update_ssh_by_tendency!(mpasOcean)
 						end
 						exacttime += halowidth*mpasOcean.dt
-
+					end
+					sampletimesmpi[jsample] += @elapsed begin
 						update_halos!(splitcomm, worldrank, mpasOcean, cellsFromChunk, cellsToChunk, myCells, myEdges, myVertices)
 					end
 				end
-				# df[df.procs .== nprocs, "time $jsample"] = sampletime
-				# wctime[itest, jsample] = sampletime
-			end # samples=1 setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
+			end 
 			#=
 			bench = @benchmark begin
 					# simulate
@@ -162,9 +161,13 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			MaxErrorNorm = norm(difference, Inf)
 			L2ErrorNorm = norm(difference/sqrt(float(mpasOcean.nCells)))
 
-			push!(df, [nprocs, sampletimes..., MaxErrorNorm, L2ErrorNorm])
-			# rootprint("error (max, l2): $MaxErrorNorm, $L2ErrorNorm")
+			push!(df, [nprocs, sampletimessim..., sampletimesmpi..., MaxErrorNorm, L2ErrorNorm])
+
 			rootprint(df[df.procs .<= nprocs, :])
+			if worldrank == root
+				CSV.write(fname, df)
+			end
+			rootprint("saved at $fname")
 
 		end
 		rootprint("freeing splitcomm")
@@ -173,29 +176,20 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 	end
 
 
-	if worldrank == root
-		fpath = CODE_ROOT * "output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(halowidth*ncycles)"
-		mkpath(fpath)
-		fname = fpath * "/$(Dates.now()).txt"
-		#=open(fname, "w") do io
-			writedlm(io, [proccounts, wctime], ',')
-		end=#
-		CSV.write(fname, df)
-		rootprint("wrote results to $fname")
-	#=	pl = Plots.plot(trialprocs, trialmeans, xlabel="number of processors", ylabel="time (ns)",
-				title="scaling of distributed simulation of $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean kelvin wave for $nsteps steps, MPI every $halowidth",
-				titlefontsize=7)
-		savedir = "/tmp/rstrauss/mpas-julia"
-		mkpath(savedir)
-		Plots.savefig(pl, "$savedir/scalingtest_$(Dates.now()).png")
-		=#
-	end
 
 	return
 end
 
+halowidth = 5
+ncycles = 2
 
 proccounts = 2 .^collect(1:log2(commsize))
-xcells = parse(Int64, ARGS[1])
+nCellsX = parse(Int64, ARGS[1])
 nsamples = parse(Int64, ARGS[2])
-runtests(proccounts; nCellsX=xcells, nsamples=nsamples)
+
+fpath = CODE_ROOT * "output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(halowidth*ncycles)"
+mkpath(fpath)
+fname = fpath * "/$(Dates.now()).txt"
+rootprint("results to: $fname")
+
+runtests(proccounts; nCellsX=nCellsX, nsamples=nsamples, halowidth=halowidth, ncycles=ncycles)

@@ -20,6 +20,9 @@ function update_halos!(comm, rank, mpasOcean, cellsFromChunk, cellsToChunk, myCe
 		append!(halobuffernv, [newhalonv])
 		reqnv = MPI.Irecv!(newhalonv, srcchunk-1, 1, comm) # tag 1 for norm vel
 		append!(recreqs, [reqnv])
+		if rank == 1
+			println("\t halo update: rank 1 receive request from $srcchunk of $(length(localcells)) cells")
+		end
 	end
 
 	MPI.Barrier(comm)
@@ -33,6 +36,9 @@ function update_halos!(comm, rank, mpasOcean, cellsFromChunk, cellsToChunk, myCe
 		order = sortperm(myEdges[localedges])
 		reqnv = MPI.Isend(mpasOcean.normalVelocityCurrent[localedges[order]], dstchunk-1, 1, comm)
 		append!(sendreqs, [reqnv])
+		if rank == 1
+			println("\t halo update: rank 1 send request to $dstchunk of $(length(localcells)) cells")
+		end
 	end
 
 	### copy the recieved data into the ocean's halo

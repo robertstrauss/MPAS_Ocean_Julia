@@ -111,18 +111,22 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	    cells = union(chunk, haloCells[i])
 	    for (j, otherchunk) in enumerate(innerCells)
 		    if j != i
-			    # if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
-	       	    localcells = findall(iCell -> iCell in otherchunk, cells)
-			    order = sortperm(cellsInChunk[i][localcells]) # sort relative to global index so local index order is consistent
-			    append!(cellsFromChunk[i], [(j, localcells[order])])
+				# if local cell (should be in the halo) overlaps the main (non-halo) part of another chunk, pull data from that chunk to update the halo
+				localcells = findall(iCell -> iCell in otherchunk, cells)
+				if length(localcells) > 0
+					order = sortperm(cellsInChunk[i][localcells]) # sort relative to global index so local index order is consistent
+					append!(cellsFromChunk[i], [(j, localcells[order])])
+				end
 		    end
 	    end
 	    for (j, otherhalo) in enumerate(haloCells)
 		    if j != i
 				# if local cell in main (non-halo) area overlaps another chunk's halo, send local data to that chunk to update its halo
 				localcells = findall(iCell -> iCell in otherhalo, chunk)
-				order = sortperm(cellsInChunk[i][localcells])
-				append!(cellsToChunk[i], [(j, localcells[order])])
+				if length(localcells) > 0
+					order = sortperm(cellsInChunk[i][localcells])
+					append!(cellsToChunk[i], [(j, localcells[order])])
+				end
 		    end
 	    end
 	end

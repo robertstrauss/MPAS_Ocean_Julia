@@ -47,8 +47,7 @@ function rectangularfactor(n)
 		return x, x
 	end
 	while x > 0 && n/x !== round(n/x)
-		x -= 1
-	end
+		x -= 1 end
 	return x, Int(round(n/x))
 end
 
@@ -131,6 +130,25 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 				# df[df.procs .== nprocs, "time $jsample"] = sampletime
 				# wctime[itest, jsample] = sampletime
 			end # samples=1 setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
+			#=
+			bench = @benchmark begin
+					# simulate
+					for f in 1:$ncycles
+						for h in 1:$halowidth
+							$calculate_normal_velocity_tendency!($mpasOcean)
+							$update_normal_velocity_by_tendency!($mpasOcean)
+
+							$boundaryCondition!($mpasOcean, exacttime)
+
+							$calculate_ssh_tendency!($mpasOcean)
+							$update_ssh_by_tendency!($mpasOcean)
+						end
+						exacttime += $halowidth*$mpasOcean.dt
+
+						update_halos!($splitcomm, $worldrank, $mpasOcean, $cellsFromChunk, $cellsToChunk, $myCells, $myEdges, $myVertices)
+					end
+				end samples=nsamples setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
+			sampletimes = bench.times=#
 
 
 			rootprint("setting up exact sol")

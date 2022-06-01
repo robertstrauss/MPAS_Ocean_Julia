@@ -7,11 +7,11 @@ include(CODE_ROOT * "/visualization.jl")
 nCellsX = 64
 nsteps = 10
 # filename = "2022-05-31T23:39:18.604.txt"
-filename = "2022-06-01T12:48:09.544.txt"
+filename = "2022-06-01T14:51:50.296.txt"
 df = DataFrame(CSV.File(CODE_ROOT * "/output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(nsteps)/$(filename)"))
 
 
-fortranmeans = [ 0.4984766666666667
+fortranmeans = [ #0.4984766666666667
                   0.6779433333333333
                   0.82572
                   0.6655300000000001
@@ -19,13 +19,13 @@ fortranmeans = [ 0.4984766666666667
                   1.4288966666666667
                   2.1260733333333337
                   3.2138833333333334
-][end:-1:1] ./ 10 # numbers for 10 steps
+][end:-1:1] ./ 10 ./ 4# numbers for 10 steps
 
 
-runs = [:sim_time2, :sim_time3, :sim_time4, :sim_time5, :sim_time6]
-mpis = [:mpi_time2, :mpi_time3, :mpi_time4, :mpi_time5, :mpi_time6]
+runs = [:sim_time2, :sim_time3, :sim_time4]#, :sim_time5, :sim_time6]
+mpis = [:mpi_time2, :mpi_time3, :mpi_time4]#, :mpi_time5, :mpi_time6]
 juliasimmean = 1/length(runs) * sum(Array(df[:,runs]), dims=2) ./ nsteps
-juliampimean = 1/length(mpis) * sum(Array(df[:,mpis]), dims=2) ./ nsteps
+juliampimean = 5* 1/length(mpis) * sum(Array(df[:,mpis]), dims=2) ./ nsteps
 juliameans = juliasimmean .+ juliampimean
 
 

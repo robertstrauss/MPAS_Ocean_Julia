@@ -180,8 +180,8 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 	return
 end
 
-halowidth = 5
-ncycles = 2
+halowidth = 1
+ncycles = 10
 
 proccounts = 2 .^collect(1:log2(commsize))
 nCellsX = parse(Int64, ARGS[1])

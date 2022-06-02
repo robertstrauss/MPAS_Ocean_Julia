@@ -97,13 +97,6 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 
 			mpasOcean = mpas_subset(fullOcean, myCells, myEdges, myVertices)
 
-
-
-			# MPI.Barrier(comm)
-			# if worldrank == root
-			# 	println("kelvin wave initial condition set")
-			# end
-
 			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")
 
 			sampletimessim = zeros(nsamples)

@@ -90,7 +90,8 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	cellsInChunk = Array{listtype}(undef, length(innerCells))
 	edgesInChunk = Array{listtype}(undef, length(innerCells))
 	verticesInChunk = Array{listtype}(undef, length(innerCells))
-	Threads.@threads for i in 1:length(innerCells)
+	# Threads.@threads
+	for i in 1:length(innerCells)
 	    chunk = innerCells[i]
         halo = grow_halo(mpasOcean, chunk, haloWidth)
 	    haloCells[i] = halo
@@ -106,7 +107,8 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
     end
 
 
-	Threads.@threads for i in 1:length(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
+	# Threads.@threads
+	for i in 1:length(innerCells) # (iChunk == "all" ? enumerate(innerCells) : [(1, innerCells[iChunk])])
 	    chunk = innerCells[i]
 	    cells = union(chunk, haloCells[i])
 	    for (j, otherchunk) in enumerate(innerCells)

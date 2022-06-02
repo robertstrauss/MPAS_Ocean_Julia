@@ -53,7 +53,10 @@ end
 
 
 
-
+function globalToLocal(globalcells, mycells)
+	localcells = findall(iCell -> iCell in mycells, globalcells)
+	return localcells
+end
 
 
 
@@ -71,7 +74,7 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
 	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
 
-	df = DataFrame([Int64[], collect([Float64[] for i in 1:nsamples])...,     collect([Float64[] for i in 1:nsamples])...,     Float64[], Float64[]], 
+	df = DataFrame([Int64[], collect([Float64[] for i in 1:nsamples])...,     collect([Float64[] for i in 1:nsamples])...,     Float64[], Float64[]],
 		       ["procs", collect(["sim_time$i" for i in 1:nsamples])...,  collect(["mpi_time$i" for i in 1:nsamples])...,  "max_error", "l2_error"])
 
 	for nprocs in proccounts
@@ -79,29 +82,75 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 		splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
 		if worldrank <= nprocs
 
-			rootprint("doing rect factor")
-			nx, ny = rectangularfactor(nprocs)
 
-			# partitionfile = partitiondir * "graph.info.part.$nprocs"
-			# rootprint("partitioning $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $(partitionfile)")
-			# partitions = dropdims(readdlm(partitionfile), dims=2)
-			# mycells = findall(proc -> proc == worldrank-1, partitions)
+			partitionfile = partitiondir * "graph.info.part.$nprocs"
+			rootprint("partitioning $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $(partitionfile)")
+			partitions = dropdims(readdlm(partitionfile), dims=2)
+			mycells = findall(proc -> proc == worldrank-1, partitions)
 
-			rootprint("dividing  $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
-			cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nx, ny)
+			haloCells = grow_halo(fullOcean, mycells, 5)
+			# rootprint("\t halo $haloCells")
+
+			cellsFromChunk = Dict{Int64, Array}()
+			for iCell in haloCells
+				chunk = partitions[iCell] + 1
+				if chunk in keys(cellsFromChunk)
+					push!(cellsFromChunk[chunk], iCell)
+				else
+					cellsFromChunk[chunk] = [iCell]
+				end
+			end
+
+			rootprint("communicating for cellsToChunk")
+			# tell neighbors which cells they should send me
+			cellsToChunk = Dict{Int64, Array}()
+			tag = 2
+			sendreqs = []; recvreqs = []
+			for (chunk, cells) in cellsFromChunk
+				push!(sendreqs, MPI.Isend(cells, chunk-1, tag, splitcomm))
+				MPI.Barrier(splitcomm)
+				numcells = MPI.Get_count(MPI.Probe(chunk-1, tag, splitcomm), Int64)
+				cellsToChunk[chunk] = Array{Int64,1}(undef, numcells)
+				push!(recvreqs, MPI.Irecv!(cellsToChunk[chunk], chunk-1, tag, splitcomm))
+			end
+			MPI.Waitall!([sendreqs..., recvreqs...])
 
 
-			myCells = cellsInChunk[worldrank] # cellsedgesvertices[1]
-			myEdges = edgesInChunk[worldrank] # cellsedgesvertices[2]
-			myVertices = verticesInChunk[worldrank] # cellsedgesvertices[3]
-
-			mpasOcean = mpas_subset(fullOcean, myCells, myEdges, myVertices)
-
+			# rootprint("doing rect factor")
+			# nx, ny = rectangularfactor(nprocs)
+			# rootprint("dividing  $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $nx x $ny grid")
+			# cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, nx, ny)
 
 
-			# MPI.Barrier(comm)
-			# if worldrank == root
-			# 	println("kelvin wave initial condition set")
+			# myCells = cellsInChunk[worldrank] # cellsedgesvertices[1]
+			# myEdges = edgesInChunk[worldrank] # cellsedgesvertices[2]
+			# myVertices = verticesInChunk[worldrank] # cellsedgesvertices[3]
+
+			rootprint("subsetting ocean")
+
+			myCells     = union(mycells, haloCells)
+	        myEdges     = collect(Set(fullOcean.edgesOnCell[:,myCells]))
+	        myVertices  = collect(Set(fullOcean.verticesOnCell[:,myCells]))
+			mpasOcean   = mpas_subset(fullOcean, myCells, myEdges, myVertices)
+
+			cellsToMyChunk = Dict{Int64, Array}()
+			for (chunk, cells) in cellsToChunk
+				localcells = globalToLocal(cells, myCells)
+				if length(localcells) > 0
+					cellsToMyChunk[chunk] = localcells
+				end
+			end
+			cellsFromMyChunk = Dict{Int64, Array}()
+			for (chunk, cells) in cellsFromChunk
+				localcells = globalToLocal(cells, myCells)
+				if length(localcells) > 0
+					cellsFromMyChunk[chunk] = localcells
+				end
+			end
+
+			# if worldrank == 1
+				println(" \t ($worldrank) from: $([chunk => length(cells) for (chunk, cells) in cellsFromMyChunk])")
+				println(" \t ($worldrank) to: $([chunk => length(cells) for (chunk, cells) in cellsToMyChunk])")
 			# end
 
 			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")
@@ -125,10 +174,10 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 						exacttime += halowidth*mpasOcean.dt
 					end
 					sampletimesmpi[jsample] += @elapsed begin
-						update_halos!(splitcomm, worldrank, mpasOcean, cellsFromChunk, cellsToChunk, myCells, myEdges, myVertices)
+						update_halos!(splitcomm, mpasOcean, cellsFromMyChunk, cellsToMyChunk, myCells, myEdges)
 					end
 				end
-			end 
+			end
 			#=
 			bench = @benchmark begin
 					# simulate
@@ -183,7 +232,7 @@ end
 halowidth = 1
 ncycles = 10
 
-proccounts = 2 .^collect(1:log2(commsize))
+proccounts = Int.(round.( 2 .^collect(1:log2(commsize)) ))
 nCellsX = parse(Int64, ARGS[1])
 nsamples = parse(Int64, ARGS[2])
 

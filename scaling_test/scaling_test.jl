@@ -149,8 +149,8 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			end
 
 			# if worldrank == 1
-				println(" \t ($worldrank) from: $([chunk => length(cells) for (chunk, cells) in cellsFromMyChunk])")
-				println(" \t ($worldrank) to: $([chunk => length(cells) for (chunk, cells) in cellsToMyChunk])")
+				# println(" \t ($worldrank) from: $([chunk => length(cells) for (chunk, cells) in cellsFromMyChunk])")
+				# println(" \t ($worldrank) to: $([chunk => length(cells) for (chunk, cells) in cellsToMyChunk])")
 			# end
 
 			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")

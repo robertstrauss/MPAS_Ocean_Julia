@@ -207,9 +207,7 @@ function grow_halo(mpasOcean, cells, radius)
 				end
             end
         end
-        if i > 1
-            append!(haloCells, outerCells)
-        end
+        append!(haloCells, newCells)
         outerCells = newCells
         newCells = []
     end

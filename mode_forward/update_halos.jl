@@ -36,14 +36,8 @@ function update_halos!(comm, rank, mpasOcean, cellsFromChunk, cellsToChunk, myCe
 	end
 
 	### copy the recieved data into the ocean's halo
-	if rank == root
-	# 	println("halo buffer before: ", halobuffernv[1][1:10])
-	end
 	# MPI.Barrier(comm)
 	MPI.Waitall!([recreqs..., sendreqs...])
-	if rank == root
-	# 	println("halo buffer after: ", halobuffernv[1][1:10])
-	end
 	# MPI.Barrier(comm)
 	for (i, (_, localcells)) in enumerate(cellsFromChunk[rank])
 		mpasOcean.sshCurrent[localcells] = halobufferssh[i]

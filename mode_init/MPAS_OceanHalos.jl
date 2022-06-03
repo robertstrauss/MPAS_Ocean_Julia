@@ -189,8 +189,6 @@ function sizeof_main_arrays(mpasOcean::MPAS_Ocean, cells, edges)
     return size
 end
 
-
-
 function grow_halo(mpasOcean, cells, radius)
     # grow halo from edge of region
     outerCells = [cells...]
@@ -201,13 +199,13 @@ function grow_halo(mpasOcean, cells, radius)
         for iCell in outerCells
 	    	if iCell != 0
                 for jCell in mpasOcean.cellsOnCell[:,iCell]
-					if ! (jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells) && !(jCell == 0)
-                        append!(newCells, jCell)
+					if !(jCell in newCells) && !(jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells) && !(jCell == 0)
+                        append!(newCells, jCell) #
                     end
 				end
             end
         end
-        append!(haloCells, newCells)
+		append!(haloCells, newCells)
         outerCells = newCells
         newCells = []
     end

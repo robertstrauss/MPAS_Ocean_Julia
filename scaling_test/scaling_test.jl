@@ -36,8 +36,6 @@ include(CODE_ROOT * "mode_init/exactsolutions.jl")
 include(CODE_ROOT * "mode_forward/update_halos.jl")
 include(CODE_ROOT * "mode_forward/time_steppers.jl")
 
-# include(CODE_ROOT * "visualization.jl")
-
 
 
 
@@ -54,22 +52,20 @@ end
 
 
 function globalToLocal(globalcells, mycells)
-	localcells = findall(iCell -> iCell in mycells, globalcells)
+	localcells = findall(iCell -> iCell in globalcells, mycells)
 	return localcells
 end
 
 
 
-partitiondir = CODE_ROOT * "scaling_test/graphparts/"
 function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
-	global fname;
+	global fname, partitiondir;
 
 	rootprint("running tests for $proccounts counts of processors with $nsamples samples per test of $(halowidth*ncycles) steps each")
 
 
 	fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
 			       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels)
-	rootprint("preparing kelvin wave")
 	lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
 	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
 	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
@@ -78,7 +74,6 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 		       ["procs", collect(["sim_time$i" for i in 1:nsamples])...,  collect(["mpi_time$i" for i in 1:nsamples])...,  "max_error", "l2_error"])
 
 	for nprocs in proccounts
-		rootprint("splitting com")
 		splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
 		if worldrank <= nprocs
 
@@ -101,14 +96,13 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 				end
 			end
 
-			rootprint("communicating for cellsToChunk")
 			# tell neighbors which cells they should send me
 			cellsToChunk = Dict{Int64, Array}()
 			tag = 2
 			sendreqs = []; recvreqs = []
 			for (chunk, cells) in cellsFromChunk
 				push!(sendreqs, MPI.Isend(cells, chunk-1, tag, splitcomm))
-				MPI.Barrier(splitcomm)
+
 				numcells = MPI.Get_count(MPI.Probe(chunk-1, tag, splitcomm), Int64)
 				cellsToChunk[chunk] = Array{Int64,1}(undef, numcells)
 				push!(recvreqs, MPI.Irecv!(cellsToChunk[chunk], chunk-1, tag, splitcomm))
@@ -137,14 +131,32 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			for (chunk, cells) in cellsToChunk
 				localcells = globalToLocal(cells, myCells)
 				if length(localcells) > 0
-					cellsToMyChunk[chunk] = localcells
+					order = sortperm(myCells[localcells]) # order according to global index, so received in correct place
+					cellsToMyChunk[chunk] = localcells[order]
 				end
 			end
 			cellsFromMyChunk = Dict{Int64, Array}()
 			for (chunk, cells) in cellsFromChunk
 				localcells = globalToLocal(cells, myCells)
 				if length(localcells) > 0
-					cellsFromMyChunk[chunk] = localcells
+					order = sortperm(myCells[localcells]) # order according to global index, so received in correct place
+					cellsFromMyChunk[chunk] = localcells[order]
+				end
+			end
+			edgesToMyChunk = Dict{Int64, Array}()
+			for (chunk, localcells) in cellsToMyChunk
+				localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells])) # Set() to remove duplicates
+				if length(localedges) > 0
+					order = sortperm(myEdges[localedges])  # order according to global index, so received in correct place
+					edgesToMyChunk[chunk] = localedges[order]
+				end
+			end
+			edgesFromMyChunk = Dict{Int64, Array}()
+			for (chunk, localcells) in cellsFromMyChunk
+				localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells])) # Set() to remove duplicates
+				if length(localedges) > 0
+					order = sortperm(myEdges[localedges])  # order according to global index, so received in correct place
+					edgesFromMyChunk[chunk] = localedges[order]
 				end
 			end
 
@@ -174,7 +186,7 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 						exacttime += halowidth*mpasOcean.dt
 					end
 					sampletimesmpi[jsample] += @elapsed begin
-						update_halos!(splitcomm, mpasOcean, cellsFromMyChunk, cellsToMyChunk, myCells, myEdges)
+						update_halos!(splitcomm, mpasOcean, cellsFromMyChunk, cellsToMyChunk, edgesFromMyChunk, edgesToMyChunk)
 					end
 				end
 			end
@@ -236,6 +248,7 @@ proccounts = Int.(round.( 2 .^collect(1:log2(commsize)) ))
 nCellsX = parse(Int64, ARGS[1])
 nsamples = parse(Int64, ARGS[2])
 
+partitiondir = CODE_ROOT * "scaling_test/graphparts/$(nCellsX)x$(nCellsX)/"
 fpath = CODE_ROOT * "output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(halowidth*ncycles)"
 mkpath(fpath)
 fname = fpath * "/$(Dates.now()).txt"

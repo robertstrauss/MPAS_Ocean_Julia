@@ -236,14 +236,14 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :verticesOnCell,
     ]
     cell2djiFields = [
-		:edgeSignOnCell,
+	:edgeSignOnCell,
         :boundaryCell,
-		:cellMask,
+	:cellMask,
     ]
     cellIndexFields = [
-		:cellsOnCell,
-		:cellsOnEdge,
-		:cellsOnVertex
+	:cellsOnCell,
+	:cellsOnEdge,
+	:cellsOnVertex
     ]
 
 
@@ -263,18 +263,18 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :cellsOnEdge,
         :edgesOnEdge,
         :verticesOnEdge,
-		:weightsOnEdge,
+	:weightsOnEdge,
     ]
-	edge2djiFields = [
+    edge2djiFields = [
         :normalVelocityCurrent,
         :normalVelocityTendency,
-		:boundaryEdge,
-		:edgeMask,
-	]
+	:boundaryEdge,
+	:edgeMask,
+    ]
     edgeIndexFields = [
-		:edgesOnCell,
-		:edgesOnEdge,
-		:edgesOnVertex,
+	:edgesOnCell,
+	:edgesOnEdge,
+	:edgesOnVertex,
     ]
 
 
@@ -295,16 +295,32 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :edgesOnVertex,
     ]
     vertex2djiFields = [
-		:edgeSignOnVertex,
+	:edgeSignOnVertex,
         :boundaryVertex,
-		:vertexMask
+	:vertexMask
     ]
     vertexIndexFields = [
-		:verticesOnCell,
-		:verticesOnEdge,
+	:verticesOnCell,
+	:verticesOnEdge,
     ]
 
 
+    mycells = collect(cells)
+    globtolocalcell = Dict{Int64,Int64}()
+    for (iLocal, iGlobal) in enumerate(mycells)
+	    globtolocalcell[iGlobal] = iLocal
+    end
+    myedges = collect(edges)
+    globtolocaledge = Dict{Int64,Int64}()
+    for (iLocal, iGlobal) in enumerate(myedges)
+	    globtolocaledge[iGlobal] = iLocal
+    end
+    myvertices = collect(vertices)
+    globtolocalvertex = Dict{Int64,Int64}()
+    for (iLocal, iGlobal) in enumerate(myvertices)
+	    globtolocalvertex[iGlobal] = iLocal
+    end
+	#=
     function indexMap(iGlobal, indices)
 		iLocals = findall(ind -> ind==iGlobal, indices)
 		if length(iLocals) == 0
@@ -312,37 +328,49 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 		end
 		return iLocals[1]
     end
+    =#
+    #=
+	function globalToLocal(globalcells, mycells)
+		localcells = findall(iCell -> iCell in globalcells, mycells)
+		return localcells
+	end
+	=#
+	function globalToLocal(globals, globmap)
+		map(iGlobal -> (if iGlobal in keys(globmap) return globmap[iGlobal] else return 0; end),
+		    	globals)
+	end
 
     ## take subsection of given cells, and map index fields to new local indices
 
     for field in cellCenteredFields
-        setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(cells)])
+        setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[mycells])
     end
     for field in cell2dFields
-		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(cells)])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,mycells])
     end
     for field in cell2djiFields
-		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(cells),:])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[mycells,:])
     end
     for field in cellIndexFields
-		setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(cells)), getfield(mpasSubOcean, field)))
+		setfield!(mpasSubOcean, field, # map(i->indexMap(i,collect(cells)), 
+			  globalToLocal(getfield(mpasSubOcean, field), globtolocalcell))
     end
     mpasSubOcean.nCells = length(cells)
 
-
     for field in edgeCenteredFields
-        setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges)])
+        setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[myedges])
     end
     for field in edge2dFields
-		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,collect(edges)])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[:,myedges])
     end
 	for field in edge2djiFields
-		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(edges),:])
+		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[myedges,:])
     end
     for field in edgeIndexFields
-		setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(edges)), getfield(mpasSubOcean, field)))
+	    setfield!(mpasSubOcean, field, globalToLocal(getfield(mpasSubOcean, field), globtolocaledge))
     end
     mpasSubOcean.nEdges = length(edges)
+
 
 
 
@@ -356,9 +384,10 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[collect(vertices),:])
     end
     for field in vertexIndexFields
-		setfield!(mpasSubOcean, field, map(i->indexMap(i,collect(vertices)), getfield(mpasSubOcean, field)))
+		setfield!(mpasSubOcean, field, globalToLocal(getfield(mpasSubOcean, field), globtolocalvertex))
     end
     mpasSubOcean.nVertices = length(vertices)
+
 
     return mpasSubOcean
 

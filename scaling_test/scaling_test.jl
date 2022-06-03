@@ -123,10 +123,11 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			rootprint("subsetting ocean")
 
 			myCells     = union(mycells, haloCells)
-	        myEdges     = collect(Set(fullOcean.edgesOnCell[:,myCells]))
-	        myVertices  = collect(Set(fullOcean.verticesOnCell[:,myCells]))
+			myEdges     = collect(Set(fullOcean.edgesOnCell[:,myCells]))
+			myVertices  = collect(Set(fullOcean.verticesOnCell[:,myCells]))
 			mpasOcean   = mpas_subset(fullOcean, myCells, myEdges, myVertices)
-
+			
+			rootprint("localizing to/from dicts")
 			cellsToMyChunk = Dict{Int64, Array}()
 			for (chunk, cells) in cellsToChunk
 				localcells = globalToLocal(cells, myCells)

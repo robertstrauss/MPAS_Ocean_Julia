@@ -82,8 +82,9 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			rootprint("partitioning $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $(partitionfile)")
 			partitions = dropdims(readdlm(partitionfile), dims=2)
 			mycells = findall(proc -> proc == worldrank-1, partitions)
-
-			haloCells = grow_halo(fullOcean, mycells, 5)
+			
+			rootprint("halos: $halowidth wide")
+			haloCells = grow_halo(fullOcean, mycells, halowidth)
 			# rootprint("\t halo $haloCells")
 
 			cellsFromChunk = Dict{Int64, Array}()

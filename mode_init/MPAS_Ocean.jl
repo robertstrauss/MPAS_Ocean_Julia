@@ -91,7 +91,7 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
 
 
 
-    nVertLevels::Integer
+    nVertLevels::I
     layerThickness::Array{F,2}
     layerThicknessEdge::Array{F,2}
 

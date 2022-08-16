@@ -189,11 +189,11 @@ function sizeof_main_arrays(mpasOcean::MPAS_Ocean, cells, edges)
     return size
 end
 
-function grow_halo(mpasOcean, cells, radius)
+function grow_halo(mpasOcean::MPAS_Ocean, cells::Array{Int64,1}, radius::Int64)
     # grow halo from edge of region
-    outerCells = [cells...]
-    newCells = []
-    haloCells = []
+    outerCells::Array{Int64,1} = copy(cells)
+    newCells::Array{Int64,1} = []
+    haloCells::Array{Int64,1} = []
 
     for i in 1:radius
         for iCell in outerCells
@@ -352,7 +352,7 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 		setfield!(mpasSubOcean, field, getfield(mpasSubOcean, field)[mycells,:])
     end
     for field in cellIndexFields
-		setfield!(mpasSubOcean, field, # map(i->indexMap(i,collect(cells)), 
+		setfield!(mpasSubOcean, field, # map(i->indexMap(i,collect(cells)),
 			  globalToLocal(getfield(mpasSubOcean, field), globtolocalcell))
     end
     mpasSubOcean.nCells = length(cells)

@@ -1,0 +1,2 @@
+results to: /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution256x256/steps10/2022-08-15T18:34:55.746.txt
+running tests for [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] counts of processors with 6 samples per test of 10 steps each

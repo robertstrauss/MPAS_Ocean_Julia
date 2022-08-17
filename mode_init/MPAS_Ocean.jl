@@ -407,6 +407,7 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 					globals[i] = 0
 				end
 			end
+			sort!(globals, dims=1, rev=true)
 		end
 
 		mpasOcean.nCells = nCells = length(cells)
@@ -513,7 +514,7 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 				mpasOcean.angleEdge = my_mesh_file["angleEdge"][:][edges]
 				# if true
 				mpasOcean.angleEdge[:] = fix_angleEdge(mpasOcean,determineYCellAlongLatitude=true,
-										   printOutput=false,printRelevantMeshData=false)[edges]
+										   printOutput=false,printRelevantMeshData=false)
 				# end
 
 # end

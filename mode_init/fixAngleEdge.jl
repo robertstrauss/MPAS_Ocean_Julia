@@ -68,7 +68,7 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         DeltaXMax = maximum(mpasOcean.dcEdge)
         xCell::Array{Float64,1} = mpasOcean.xCell
         yCell::Array{Float64,1} = mpasOcean.yCell
-        println("yCell ", sizeof(yCell))
+        # println("yCell ", sizeof(yCell))
         nCells = length(yCell)
         # The determination of yCellAlongLatitude in the following lines only holds for rectangular structured meshes
         # with equal number of cells in each direction. However, for a problem with non-periodic boundary conditions,
@@ -186,6 +186,9 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
                 DeltaY = -sqrt3over2*dcEdge
             end
         end
+	if DeltaX == 0 && DeltaY == 0
+		println("dx dy 0 iEdge: $iEdge mpascellsonedge: $(mpasOcean.cellsOnEdge[:,iEdge])")
+	end
         computed_angleEdge[iEdge] = returnTanInverseInProperQuadrant(DeltaX,DeltaY)
         if printOutput
             # printOutput should be specified as True only for small meshes consisting of 4 x 4 cells.

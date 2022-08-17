@@ -24,6 +24,8 @@ using BenchmarkTools
 import Plots
 import Dates
 
+using TimerOutputs
+
 
 CODE_ROOT = pwd() * "/"#../"
 include(CODE_ROOT * "mode_init/MPAS_Ocean.jl")
@@ -58,20 +60,23 @@ end
 
 
 
-function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
-	global fname, partitiondir;
+function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
 
+#	timout = TimerOutput()
+	
 	rootprint("running tests for $proccounts counts of processors with $nsamples samples per test of $(halowidth*ncycles) steps each")
 
 
-	fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
-			       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels)
-	lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
-	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
-	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
+# 	@timeit timout "load ocean file" (fullOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
+# 	"culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels))
+#	lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
+#	lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
+#	kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
 
 	df = DataFrame([Int64[], collect([Float64[] for i in 1:nsamples])...,     collect([Float64[] for i in 1:nsamples])...,     Float64[], Float64[]],
 		       ["procs", collect(["sim_time$i" for i in 1:nsamples])...,  collect(["mpi_time$i" for i in 1:nsamples])...,  "max_error", "l2_error"])
+
+	cellsOnCell = Array{Int64,2}(replace(readdlm(partitiondir * "graph.info")[2:end,:], ""=>0))
 
 	for nprocs in proccounts
 		splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
@@ -79,12 +84,13 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 
 
 			partitionfile = partitiondir * "graph.info.part.$nprocs"
-			rootprint("partitioning $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $(partitionfile)")
+			rootprint("partitioning $nCellsX x $nCellsX x $(nvlevels) ocean among $nprocs processes with $(partitionfile)")
 			partitions = dropdims(readdlm(partitionfile), dims=2)
 			mycells = findall(proc -> proc == worldrank-1, partitions)
 			
 			rootprint("halos: $halowidth wide")
-			haloCells = grow_halo(fullOcean, mycells, halowidth)
+#			@timeit timout "grow halo" 
+			(haloCells = grow_halo(cellsOnCell, mycells, halowidth))
 			# rootprint("\t halo $haloCells")
 
 			cellsFromChunk = Dict{Int64, Array}()
@@ -100,7 +106,8 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			# tell neighbors which cells they should send me
 			cellsToChunk = Dict{Int64, Array}()
 			tag = 2
-			sendreqs = []; recvreqs = []
+			sendreqs = Array{MPI.Request,1}()
+			recvreqs = Array{MPI.Request,1}()
 			for (chunk, cells) in cellsFromChunk
 				push!(sendreqs, MPI.Isend(cells, chunk-1, tag, splitcomm))
 
@@ -108,7 +115,7 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 				cellsToChunk[chunk] = Array{Int64,1}(undef, numcells)
 				push!(recvreqs, MPI.Irecv!(cellsToChunk[chunk], chunk-1, tag, splitcomm))
 			end
-			MPI.Waitall!([sendreqs..., recvreqs...])
+			MPI.Waitall!(vcat(sendreqs, recvreqs))
 
 
 			# rootprint("doing rect factor")
@@ -122,11 +129,15 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			# myVertices = verticesInChunk[worldrank] # cellsedgesvertices[3]
 
 			rootprint("subsetting ocean")
-
-			myCells     = union(mycells, haloCells)
-			myEdges     = collect(Set(fullOcean.edgesOnCell[:,myCells]))
-			myVertices  = collect(Set(fullOcean.verticesOnCell[:,myCells]))
-			mpasOcean   = mpas_subset(fullOcean, myCells, myEdges, myVertices)
+			
+#			@timeit timout "subset" begin
+				myCells     = union(mycells, haloCells)
+#				myEdges     = collect(Set(fullOcean.edgesOnCell[:,myCells]))
+#				myVertices  = collect(Set(fullOcean.verticesOnCell[:,myCells]))
+#				mpasOcean   = mpas_subset(fullOcean, myCells, myEdges, myVertices)
+				mpasOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes", "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels, cells=myCells)
+#			end
+				myEdges = collect(Set(mpasOcean.edgesOnCell[:,:]))
 			
 			rootprint("localizing to/from dicts")
 			cellsToMyChunk = Dict{Int64, Array}()
@@ -166,12 +177,16 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 				# println(" \t ($worldrank) from: $([chunk => length(cells) for (chunk, cells) in cellsFromMyChunk])")
 				# println(" \t ($worldrank) to: $([chunk => length(cells) for (chunk, cells) in cellsToMyChunk])")
 			# end
+			#lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
+			#lateralProfilePeriodic(y) = 1e-3*cos(y/lYedge * 4 * pi)
+			#kelvinWaveExactNV, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(fullOcean, lateralProfilePeriodic)
 
 			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")
 
 			sampletimessim = zeros(nsamples)
 			sampletimesmpi = zeros(nsamples)
-			exacttime=0; kelvinWaveExactSolution!(mpasOcean, exacttime)
+			exacttime=0; #kelvinWaveExactSolution!(mpasOcean, exacttime)
+#			@timeit timout "simulation"
 			for jsample in 1:nsamples
 				for f in 1:ncycles
 					# simulate
@@ -180,7 +195,7 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 							calculate_normal_velocity_tendency!(mpasOcean)
 							update_normal_velocity_by_tendency!(mpasOcean)
 
-							boundaryCondition!(mpasOcean, exacttime)
+							# boundaryCondition!(mpasOcean, exacttime)
 
 							calculate_ssh_tendency!(mpasOcean)
 							update_ssh_by_tendency!(mpasOcean)
@@ -216,7 +231,7 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 			rootprint("setting up exact sol")
 			exactssh = zero(mpasOcean.sshCurrent)
 			for iCell in 1:mpasOcean.nCells
-				exactssh[iCell,:] .= kelvinWaveExactSSH(mpasOcean, iCell, halowidth*ncycles*mpasOcean.dt)
+				exactssh[iCell,:] .= 0 #kelvinWaveExactSSH(mpasOcean, iCell, halowidth*ncycles*mpasOcean.dt)
 			end
 
 			rootprint("calculating error")
@@ -236,6 +251,10 @@ function runtests(proccounts; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nv
 		rootprint("freeing splitcomm")
 		MPI.free(splitcomm)
 		MPI.Barrier(comm)
+
+		if worldrank == root
+#			show(timout)
+		end
 	end
 
 
@@ -249,11 +268,12 @@ ncycles = 10
 proccounts = Int.(round.( 2 .^collect(1:log2(commsize)) ))
 nCellsX = parse(Int64, ARGS[1])
 nsamples = parse(Int64, ARGS[2])
+nvlevels = 100
 
 partitiondir = CODE_ROOT * "scaling_test/graphparts/$(nCellsX)x$(nCellsX)/"
-fpath = CODE_ROOT * "output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps$(halowidth*ncycles)"
+fpath = CODE_ROOT * "output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/procs$(commsize)/steps$(halowidth*ncycles)/nvlevels$(nvlevels)"
 mkpath(fpath)
 fname = fpath * "/$(Dates.now()).txt"
 rootprint("results to: $fname")
 
-runtests(proccounts; nCellsX=nCellsX, nsamples=nsamples, halowidth=halowidth, ncycles=ncycles)
+runtests(proccounts, fname, partitiondir; nCellsX=nCellsX, nsamples=nsamples, halowidth=halowidth, ncycles=ncycles, nvlevels=nvlevels)

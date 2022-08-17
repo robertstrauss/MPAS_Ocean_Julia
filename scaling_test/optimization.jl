@@ -1,4 +1,9 @@
 
+
+using TimerOutputs
+using BenchmarkTools
+using DelimitedFiles
+
 CODE_ROOT = pwd() * "/"#../"
 
 include(CODE_ROOT * "mode_init/MPAS_Ocean.jl")
@@ -8,13 +13,12 @@ include(CODE_ROOT * "mode_init/initial_conditions.jl")
 include(CODE_ROOT * "mode_forward/time_steppers.jl")
 include(CODE_ROOT * "mode_init/exactsolutions.jl")
 
-using BenchmarkTools
-
-using DelimitedFiles
-
 rank = 1
 worldrank = 1
 root = 1
+nprocs = 4
+nCellsX = 64
+halowidth = 5
 
 function rootprint(text)
 	if rank == root
@@ -22,16 +26,11 @@ function rootprint(text)
 	end
 end
 
-
-nprocs = 4
-
-# fullOcean = MPAS_Ocean("MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic", "base_mesh.nc", "mesh.nc", periodicity="Periodic")
-nCellsX = 64
-println("loading ocean from file")
-fullOcean = MPAS_Ocean(
+# println("loading ocean from file")
+fullOcean =  MPAS_Ocean(
 				CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
 		       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", nvlevels=1, periodicity="NonPeriodic_x")
-halowidth = 5
+
 
 
 partitiondir = CODE_ROOT * "scaling_test/graphparts/$(nCellsX)x$(nCellsX)/"
@@ -39,6 +38,7 @@ partitiondir = CODE_ROOT * "scaling_test/graphparts/$(nCellsX)x$(nCellsX)/"
 
 
 println("dividing ocean")
+partitionfile = partitiondir * "graph.info.part.$nprocs"
 # cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk = divide_ocean(fullOcean, halowidth, 2, 2)#; iChunk = rank)
 function partitionorig(partitionfile::String = partitiondir * "graph.info.part.$nprocs")
 	# rootprint("partitioning $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $(partitionfile)")
@@ -73,16 +73,22 @@ function partitionorig(partitionfile::String = partitiondir * "graph.info.part.$
 	# MPI.Waitall!([sendreqs..., recvreqs...])
 end
 
+cellsOnCell = replace(readdlm(partitiondir * "graph.info"), ""=>0)
 
 function partition(partitionfile::String = partitiondir * "graph.info.part.$nprocs")
+	global mycells, haloCells
 	# rootprint("partitioning $nCellsX x $nCellsX x $(fullOcean.nVertLevels) ocean among $nprocs processes with $(partitionfile)")
 	partitions::Array{Int64,1} = dropdims((readdlm(partitionfile)), dims=2)
+	cellsOnCell::Array{Int64,2} = replace(readdlm(partitiondir * "graph.info"), ""=>0)
 	# partitions = Array{Int64,1}()
 	# println("arr size ", sizeof(partitions))
 	mycells = findall(proc -> proc == worldrank-1, partitions)
 
+
+
+
 	# rootprint("halos: $halowidth wide")
-	haloCells = grow_halo(fullOcean, mycells, halowidth)
+	haloCells = grow_halo(cellsOnCell, mycells, halowidth)
 	# haloCells = Array{Int64, 1}()
 	# rootprint("\t halo $haloCells")
 
@@ -108,30 +114,32 @@ function partition(partitionfile::String = partitiondir * "graph.info.part.$npro
 		# push!(recvreqs, MPI.Irecv!(cellsToChunk[chunk], chunk-1, tag, splitcomm))
 	end
 	# MPI.Waitall!([sendreqs..., recvreqs...])
+
+
 end
 # partition(partitiondir * "graph.info.part.$nprocs")
 
-@code_warntype partition(partitiondir * "graph.info.part.$nprocs")
+# @code_warntype partition()
 
-@btime partition(partitiondir * "graph.info.part.$nprocs")
+# @btime partition()
 
-@btime partitionorig()
+# @btime partitionorig()
 
+partition()
 
-include(CODE_ROOT * "mode_init/MPAS_OceanHalos.jl")
-
-@code_warntype grow_halo(fullOcean, mycells, 3)
-@btime grow_halo(fullOcean, mycells, 3)
 
 # @code_warntype divide_ocean(fullOcean, halowidth, 2, 2)
 
-
-myCells = cellsInChunk[rank] # cellsedgesvertices[1]
-myEdges = edgesInChunk[rank] # cellsedgesvertices[2]
-myVertices = verticesInChunk[rank] # cellsedgesvertices[3]
-
-mpasOcean = mpas_subset(fullOcean, myCells, myEdges, myVertices)
-
+function subset()
+	myCells     = union(mycells, haloCells)
+	mpasOcean =  MPAS_Ocean(
+					CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
+			       "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", nvlevels=1, periodicity="NonPeriodic_x",
+				   cells=:)
+end
+# @code_warntype subset()
+# @btime subset()
+subset()
 
 
 # mpasOcean = fullOcean

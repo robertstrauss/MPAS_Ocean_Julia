@@ -1,31 +1,32 @@
 import NCDatasets
 import CUDA
+using SparseArrays
 # import KernelAbstractions
 
 # include("Namelist.jl")
 include("fixAngleEdge.jl")
 
 
-I = Int64
-F = Float64
+# const I = Int64
+# const F = Float64
 
-mutable struct MPAS_Ocean#{F<:AbstractFloat}
+mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 
 #     boundaryConditions::Array{BoundaryCondition}
 
     # prognostic variables
-    sshCurrent::Array{F,1}   #where F <: AbstractFloat # sea surface height (cell-centered)
-    sshTendency::Array{F,1}   #where F <: AbstractFloat # tendency (cell-centered)
+    sshCurrent::Array{Float64,1}   #where Float64 <: AbstractFloat # sea surface height (cell-centered)
+    sshTendency::Array{Float64,1}   #where Float64 <: AbstractFloat # tendency (cell-centered)
 
-    normalVelocityCurrent::Array{F,2}   #where F <: AbstractFloat # group velocity normal to mesh edges (edge-centered)
-    normalVelocityTendency::Array{F,2}   #where F <: AbstractFloat # tendency (edge-centered)
+    normalVelocityCurrent::Array{Float64,2}   #where Float64 <: AbstractFloat # group velocity normal to mesh edges (edge-centered)
+    normalVelocityTendency::Array{Float64,2}   #where Float64 <: AbstractFloat # tendency (edge-centered)
 
 
-	bottomDepth::Array{F,1}   #where F <: AbstractFloat # bathymetry (cell-centered)
-    bottomDepthEdge::Array{F,1}   #where F <: AbstractFloat # bathymetry (cell-centered)
-    gravity::F
+	bottomDepth::Array{Float64,1}   #where Float64 <: AbstractFloat # bathymetry (cell-centered)
+    bottomDepthEdge::Array{Float64,1}   #where Float64 <: AbstractFloat # bathymetry (cell-centered)
+    gravity::Float64
 
-    dt::F # timestep
+    dt::Float64 # timestep
 
 
 
@@ -33,85 +34,81 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
 
 
     ## cell-centered arrays
-    nCells::I  # number of cells
-    cellsOnCell::Array{I,2}  # indices of neighbor cells (nCells, nEdgesOnCell[i])
-    edgesOnCell::Array{I,2}  # indices of edges of cell (nCells, nEdgesOnCell[i])
-    verticesOnCell::Array{I,2}  # indices of vertices of cell (nCells, nEdgesOnCell[i])
-    kiteIndexOnCell::Array{I,2}  # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[i])
-    nEdgesOnCell::Array{I,1}  # number of edges a cell has (cell-centered)
-    edgeSignOnCell::Array{Int8,2} # orientation of edge relative to cell (nCells, nEdgesOnCell[i])
-    latCell::Array{F,1}   #where F <: AbstractFloat # latitude of cell (cell-centered)
-    lonCell::Array{F,1}   #where F <: AbstractFloat # longitude of cell (cell-centered)
-    xCell::Array{F,1}   #where F <: AbstractFloat # x coordinate of cell (cell-centered)
-    yCell::Array{F,1}   #where F <: AbstractFloat # y coordinate of cell (cell-centered)
-    areaCell::Array{F,1}   #where F <: AbstractFloat # area of cell (cell-centered)
-    fCell::Array{F,1}   #where F <: AbstractFloat # coriolis parameter (cell-centered)
-    maxLevelCell::Array{I,1}
-    gridSpacing::Array{F,1}   #where F <: AbstractFloat
-    boundaryCell::Array{I,2}  # 0 for inner cells, 1 for boundary cells (cell-centered)
-	cellMask::Array{I,2}
+    nCells::Int64  # number of cells
+    cellsOnCell::Array{Int64,2}  # indices of neighbor cells (nCells, nEdgesOnCell[Int64])
+    edgesOnCell::Array{Int64,2}  # indices of edges of cell (nCells, nEdgesOnCell[Int64])
+    verticesOnCell::Array{Int64,2}  # indices of vertices of cell (nCells, nEdgesOnCell[Int64])
+    # kiteIndexOnCell::Array{Int64,2}  # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[Int64])
+    nEdgesOnCell::Array{Int64,1}  # number of edges a cell has (cell-centered)
+    edgeSignOnCell::Array{Int8,2} # orientation of edge relative to cell (nCells, nEdgesOnCell[Int64])
+    latCell::Array{Float64,1}   #where Float64 <: AbstractFloat # latitude of cell (cell-centered)
+    lonCell::Array{Float64,1}   #where Float64 <: AbstractFloat # longitude of cell (cell-centered)
+    xCell::Array{Float64,1}   #where Float64 <: AbstractFloat # x coordinate of cell (cell-centered)
+    yCell::Array{Float64,1}   #where Float64 <: AbstractFloat # y coordinate of cell (cell-centered)
+    areaCell::Array{Float64,1}   #where Float64 <: AbstractFloat # area of cell (cell-centered)
+    fCell::Array{Float64,1}   #where Float64 <: AbstractFloat # coriolis parameter (cell-centered)
+    maxLevelCell::Array{Int64,1}
+    gridSpacing::Array{Float64,1}   #where Float64 <: AbstractFloat
+    boundaryCell::Array{Int64,2}  # 0 for inner cells, 1 for boundary cells (cell-centered)
+	cellMask::Array{Int64,2}
 
 
     ## edge-centered arrays
-    nEdges::I
-    cellsOnEdge::Array{I,2}  # indices of the two cells on this edge (nEdges, 2)
-    edgesOnEdge::Array{I,2}
-    verticesOnEdge::Array{I,2}
-    nEdgesOnEdge::Array{I,1}
-    xEdge::Array{F,1}   #where F <: AbstractFloat
-    yEdge::Array{F,1}   #where F <: AbstractFloat
-    dvEdge::Array{F,1}   #where F <: AbstractFloat
-    dcEdge::Array{F,1}   #where F <: AbstractFloat
-    fEdge::Array{F,1}   #where F <: AbstractFloat # coriolis parameter
-    angleEdge::Array{F,1}   #where F <: AbstractFloat
-    weightsOnEdge::Array{F,2}   #where F <: AbstractFloat # coeffecients of norm vels of surrounding edges in linear combination to compute tangential velocity
-    maxLevelEdgeTop::Array{I,1}
-    maxLevelEdgeBot::Array{I,1}
-    boundaryEdge::Array{I,2}
-    edgeMask::Array{I,2}
+    nEdges::Int64
+    cellsOnEdge::Array{Int64,2}  # indices of the two cells on this edge (nEdges, 2)
+    edgesOnEdge::Array{Int64,2}
+    verticesOnEdge::Array{Int64,2}
+    nEdgesOnEdge::Array{Int64,1}
+    xEdge::Array{Float64,1}   #where Float64 <: AbstractFloat
+    yEdge::Array{Float64,1}   #where Float64 <: AbstractFloat
+    dvEdge::Array{Float64,1}   #where Float64 <: AbstractFloat
+    dcEdge::Array{Float64,1}   #where Float64 <: AbstractFloat
+    fEdge::Array{Float64,1}   #where Float64 <: AbstractFloat # coriolis parameter
+    angleEdge::Array{Float64,1}   #where Float64 <: AbstractFloat
+    weightsOnEdge::Array{Float64,2}   #where Float64 <: AbstractFloat # coeffecients of norm vels of surrounding edges in linear combination to compute tangential velocity
+    maxLevelEdgeTop::Array{Int64,1}
+    maxLevelEdgeBot::Array{Int64,1}
+    boundaryEdge::Array{Int64,2}
+    edgeMask::Array{Int64,2}
 
 
     ## vertex-centered arrays
-    nVertices::I
-    latVertex::Array{F,1}   #where F <: AbstractFloat
-    lonVertex::Array{F,1}   #where F <: AbstractFloat
-    xVertex::Array{F,1}   #where F <: AbstractFloat
-    yVertex::Array{F,1}   #where F <: AbstractFloat
-    vertexDegree::Integer
-    cellsOnVertex::Array{I}
-    edgesOnVertex::Array{I}
-    edgeSignOnVertex::Array{I}
-    fVertex::Array{F}   #where F <: AbstractFloat
-    areaTriangle::Array{F}   #where F <: AbstractFloat
-    kiteAreasOnVertex::Array{F}   #where F <: AbstractFloat
-    maxLevelVertexTop::Array{I}
-    maxLevelVertexBot::Array{I}
-    boundaryVertex::Array{I,2}
-    vertexMask::Array{I,2}
+    nVertices::Int64
+    latVertex::Array{Float64,1}   #where Float64 <: AbstractFloat
+    lonVertex::Array{Float64,1}   #where Float64 <: AbstractFloat
+    xVertex::Array{Float64,1}   #where Float64 <: AbstractFloat
+    yVertex::Array{Float64,1}   #where Float64 <: AbstractFloat
+    vertexDegree::Int64
+    cellsOnVertex::Array{Int64}
+    edgesOnVertex::Array{Int64}
+    edgeSignOnVertex::Array{Int8}
+    fVertex::Array{Float64}   #where Float64 <: AbstractFloat
+    areaTriangle::Array{Float64}   #where Float64 <: AbstractFloat
+    kiteAreasOnVertex::Array{Float64}   #where Float64 <: AbstractFloat
+    maxLevelVertexTop::Array{Int64}
+    maxLevelVertexBot::Array{Int64}
+    boundaryVertex::Array{Int64,2}
+    vertexMask::Array{Int64,2}
 
 
 
-    nVertLevels::I
-    layerThickness::Array{F,2}
-    layerThicknessEdge::Array{F,2}
+    nVertLevels::Int64
+    layerThickness::Array{Float64,2}
+    layerThicknessEdge::Array{Float64,2}
 
 
-#     ExactSolutionParameters::Array{F}   #where F <: AbstractFloat
+#     ExactSolutionParameters::Array{Float64}   #where Float64 <: AbstractFloat
 #     myNamelist::Namelist
 
-    gridSpacingMagnitude::F
+    gridSpacingMagnitude::Float64
 
     # maximum values of x and y (size of mesh)
-    lX::F
-    lY::F
+    lX::Float64
+    lY::Float64
 
-    nNonPeriodicBoundaryCells::I
-    nNonPeriodicBoundaryEdges::I
-    nNonPeriodicBoundaryVertices::I
-
-
-
-
+    nNonPeriodicBoundaryCells::Int64
+    nNonPeriodicBoundaryEdges::Int64
+    nNonPeriodicBoundaryVertices::Int64
 
     # load state from file
 #     function MPAS_Ocean(mesh_directory::String, base_mesh_file_name, mesh_file_name; periodicity::String)
@@ -125,186 +122,475 @@ mutable struct MPAS_Ocean#{F<:AbstractFloat}
     #                     mesh_file_name;
     #                     periodicity = "Periodic")
     # end
-    function MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
-                        base_mesh_file_name = "base_mesh.nc",
-                        mesh_file_name = "mesh.nc";
-						nvlevels =1,
-                        periodicity = "Periodic")# where F<:AbstractFloat
-        mpasOcean = new()
+
+#
+# 	function MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
+# 						base_mesh_file_name = "base_mesh.nc",
+# 						mesh_file_name = "mesh.nc";
+# 						nvlevels =1,
+# 						periodicity = "Periodic")# where Float64<:AbstractFloat
+# 		mpasOcean = new()
+# #        mpasOcean.boundaryConditions = [BoundaryCondition()]
+#
+#
+#         ### Mesh stuff
+# #         mpasOcean.myNamelist = Namelist()
+#
+#         base_mesh_file = NCDatasets.Dataset("$mesh_directory/$base_mesh_file_name", "r", format=:netcdf4_classic)
+#         mesh_file = NCDatasets.Dataset("$mesh_directory/$mesh_file_name", "r", format=:netcdf4_classic)
+#
+#         maxEdges = mesh_file.dim["maxEdges"]
+#
+#         ## defining the mesh
+#         mpasOcean.nCells = mesh_file.dim["nCells"]
+#         mpasOcean.nEdges = mesh_file.dim["nEdges"]
+#         mpasOcean.nVertices = mesh_file.dim["nVertices"]
+#         mpasOcean.vertexDegree = mesh_file.dim["vertexDegree"]
+#         mpasOcean.nVertLevels = nvlevels
+#
+#         # will be incremented in ocn_init_routines_compute_max_level
+#         mpasOcean.nNonPeriodicBoundaryEdges = 0
+#         mpasOcean.nNonPeriodicBoundaryVertices = 0
+#         mpasOcean.nNonPeriodicBoundaryCells = 0
+#
+#         nCells = mpasOcean.nCells
+#         nEdges = mpasOcean.nEdges
+#         nVertices = mpasOcean.nVertices
+#
+#         # Choose my_mesh_file_name to be either base_mesh_file_name or mesh_file_name
+#         my_mesh_file_name = mesh_file_name
+#         # Choose my_mesh_file to be either base_mesh_file or mesh_file
+#         my_mesh_file = mesh_file
+#
+#         mpasOcean.cellsOnCell = my_mesh_file["cellsOnCell"][:]
+#         mpasOcean.nEdgesOnCell = base_mesh_file["nEdgesOnCell"][:]
+#         mpasOcean.edgesOnCell = my_mesh_file["edgesOnCell"][:]
+#         mpasOcean.verticesOnCell = my_mesh_file["verticesOnCell"][:]
+#
+#         mpasOcean.cellsOnEdge = my_mesh_file["cellsOnEdge"][:]
+#         mpasOcean.nEdgesOnEdge = base_mesh_file["nEdgesOnEdge"][:]
+#         mpasOcean.edgesOnEdge = my_mesh_file["edgesOnEdge"][:]
+#         mpasOcean.verticesOnEdge = my_mesh_file["verticesOnEdge"][:]
+#
+#         mpasOcean.cellsOnVertex = my_mesh_file["cellsOnVertex"][:]
+#         mpasOcean.edgesOnVertex = my_mesh_file["edgesOnVertex"][:]
+#         #
+#
+#
+#         mpasOcean.angleEdge = my_mesh_file["angleEdge"][:]
+#         # if true
+#         mpasOcean.angleEdge[:] = fix_angleEdge(mesh_directory,my_mesh_file_name,determineYCellAlongLatitude=true,
+#                                    printOutput=false,printRelevantMeshData=false)
+#         # end
+#
+#
+#
+#         mpasOcean.xEdge = my_mesh_file["xEdge"][:]
+#         mpasOcean.yEdge = my_mesh_file["yEdge"][:]
+#
+#
+#         mpasOcean.latCell = base_mesh_file["latCell"][:]
+#         mpasOcean.lonCell = base_mesh_file["lonCell"][:]
+#         mpasOcean.xCell = base_mesh_file["xCell"][:]
+#         mpasOcean.yCell = base_mesh_file["yCell"][:]
+#
+#         mpasOcean.areaCell = my_mesh_file["areaCell"][:]
+#         mpasOcean.dvEdge = my_mesh_file["dvEdge"][:]
+#         mpasOcean.dcEdge = my_mesh_file["dcEdge"][:]
+#
+#         mpasOcean.kiteAreasOnVertex = my_mesh_file["kiteAreasOnVertex"][:]
+#         mpasOcean.areaTriangle = my_mesh_file["areaTriangle"][:]
+#
+#
+#         mpasOcean.latVertex = base_mesh_file["latVertex"][:]
+#         mpasOcean.lonVertex = base_mesh_file["lonVertex"][:]
+#         mpasOcean.xVertex = base_mesh_file["xVertex"][:]
+#         mpasOcean.yVertex = base_mesh_file["yVertex"][:]
+#
+#
+# #         mpasOcean.gridSpacing = mesh_file["gridSpacing"][:]
+# 		mpasOcean.gridSpacing = sqrt.(mpasOcean.areaCell)#mpasOcean.xCell[2] - mpasOcean.xCell[1]
+#
+#         useGridSpacingMagnitudeDefaultDefinition = true
+#         if useGridSpacingMagnitudeDefaultDefinition
+#             mpasOcean.gridSpacingMagnitude = mpasOcean.gridSpacing[0+1]
+#         else
+#             mpasOcean.gridSpacingMagnitude = mpasOcean.xCell[1+1] - mpasOcean.xCell[0+1]
+#         end
+#
+#
+#         # For a mesh with non-periodic zonal boundaries, adjust the zonal coordinates of the cell centers,
+#         # vertices and edges.
+#         dx = mpasOcean.gridSpacingMagnitude # Int64.e. dx = mpasOcean.dcEdge[0]
+#         dy = sqrt(3.0)/2.0*dx
+#         if periodicity == "NonPeriodic_x" || periodicity == "NonPeriodic_xy"
+#             mpasOcean.xCell[:] .-= dx
+#             mpasOcean.xVertex[:] .-= dx
+#             mpasOcean.xEdge[:] .-= dx
+#         end
+#         if periodicity == "NonPeriodic_y" || periodicity == "NonPeriodic_xy"
+#             mpasOcean.yCell[:] .-= dy
+#             mpasOcean.yVertex[:] .-= dy
+#             mpasOcean.yEdge[:] .-= dy
+#         end
+#
+#         # Specify the zonal && meridional extents of the domain.
+#         mpasOcean.lX = round(maximum(mpasOcean.xCell)) # Int64.e. mpasOcean.lX = sqrt(float(mpasOcean.nCells))*dx
+#         # Please note that for all of our test problems, the MPAS-O mesh is generated in such a way that
+#         # mpasOcean.lX Int64.e. the number of cells in the x (|| y) direction times dx has zero fractional part in
+#         # units of m, for which we can afford to round it to attain perfection.
+#         mpasOcean.lY = sqrt(3.0)/2.0*mpasOcean.lX # Int64.e. mpasOcean.lY = max(mpasOcean.yVertex)
+#
+#
+# #         mpasOcean.ExactSolutionParameters = DetermineExactSolutionParameters(mpasOcean,false)
+#         # Define && initialize the following arrays not contained within either the base mesh file || the mesh
+#         # file.
+#         mpasOcean.fVertex = zeros(Float64, nVertices)
+#         mpasOcean.fCell = zeros(Float64, nCells)
+#         mpasOcean.fEdge = zeros(Float64, nEdges)
+#         mpasOcean.bottomDepth = zeros(Float64, nCells)
+#         mpasOcean.bottomDepthEdge = zeros(Float64, nEdges)
+#
+#         mpasOcean.layerThickness = zeros(Float64, (nCells, mpasOcean.nVertLevels))
+#         mpasOcean.layerThicknessEdge = zeros(Float64, (nEdges, mpasOcean.nVertLevels))
+#
+#         DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
+#
+#         mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells,maxEdges))
+#         mpasOcean.edgeSignOnVertex = zeros(Int8, (nVertices,maxEdges))
+#
+#
+#         mpasOcean.weightsOnEdge = my_mesh_file["weightsOnEdge"][:]
+#
+#         mpasOcean.edgeSignOnCell = zeros(Int8, (nCells,maxEdges))
+#         ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
+#
+#
+#         mpasOcean.boundaryCell = zeros(Int64, (nCells, mpasOcean.nVertLevels))
+#         mpasOcean.boundaryEdge = zeros(Int64, (nEdges, mpasOcean.nVertLevels))
+#         mpasOcean.boundaryVertex = zeros(Int64, (nVertices, mpasOcean.nVertLevels))
+#         mpasOcean.cellMask = zeros(Int64, (nCells, mpasOcean.nVertLevels))
+#         mpasOcean.edgeMask = zeros(Int64, (nEdges, mpasOcean.nVertLevels))
+#         mpasOcean.vertexMask = zeros(Int64, (nVertices, mpasOcean.nVertLevels))
+#
+#         mpasOcean.maxLevelCell = zeros(Int64, nCells)
+#         mpasOcean.maxLevelEdgeTop = zeros(Int64, nEdges)
+#         mpasOcean.maxLevelEdgeBot = zeros(Int64, nEdges)
+#         mpasOcean.maxLevelVertexTop = zeros(Int64, nVertices)
+#         mpasOcean.maxLevelVertexBot = zeros(Int64, nVertices)
+#
+#
+#
+#
+#
+#
+#         ## defining the prognostic variables
+#         mpasOcean.sshCurrent = zeros(Float64, nCells)
+#         mpasOcean.sshTendency = zeros(Float64, nCells)
+#
+#         mpasOcean.normalVelocityCurrent = zeros(Float64, (nEdges, mpasOcean.nVertLevels))
+#         mpasOcean.normalVelocityTendency = zeros(Float64, (nEdges, mpasOcean.nVertLevels))
+#
+#         mpasOcean.gravity = 9.8
+#
+#         # calculate minimum dt based on CFL condition
+#         mpasOcean.dt = 0.1 * minimum(mpasOcean.dcEdge) / sqrt(mpasOcean.gravity * maximum(mpasOcean.bottomDepth))
+#
+#         ocn_init_routines_compute_max_level!(mpasOcean)
+#
+#         return mpasOcean
+#     end
+
+	function MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
+						base_mesh_file_name = "base_mesh.nc",
+						mesh_file_name = "mesh.nc";
+						nvlevels = 1,
+						periodicity = "Periodic",
+						cells = Colon())# where Float64<:AbstractFloat
+
+		# tmr = TimerOutput()
+
+	# @timeit tmr "file" begin
+		# @timeit tmr "ocean" begin
+		mpasOcean = new()
+		# end
 
 
 
 
-#        mpasOcean.boundaryConditions = [BoundaryCondition()]
+		base_mesh_file = NCDatasets.Dataset("$mesh_directory/$base_mesh_file_name", "r", format=:netcdf4)
+		mesh_file = NCDatasets.Dataset("$mesh_directory/$mesh_file_name", "r", format=:netcdf4)
+
+		# Choose my_mesh_file_name to be either base_mesh_file_name or mesh_file_name
+		my_mesh_file_name = mesh_file_name
+		# Choose my_mesh_file to be either base_mesh_file or mesh_file
+		my_mesh_file = mesh_file
 
 
-        ### Mesh stuff
-#         mpasOcean.myNamelist = Namelist()
+		maxEdges = mesh_file.dim["maxEdges"]
 
-        base_mesh_file = NCDatasets.Dataset("$mesh_directory/$base_mesh_file_name", "r", format=:netcdf4_classic)
-        mesh_file = NCDatasets.Dataset("$mesh_directory/$mesh_file_name", "r", format=:netcdf4_classic)
+		## defining the mesh
+		nGlobalCells = mesh_file.dim["nCells"]
+		nGlobalEdges = mesh_file.dim["nEdges"]
+		nGlobalVertices = mesh_file.dim["nVertices"]
+		mpasOcean.vertexDegree = mesh_file.dim["vertexDegree"]
+		mpasOcean.nVertLevels = nvlevels
 
-        maxEdges = mesh_file.dim["maxEdges"]
-
-        ## defining the mesh
-        mpasOcean.nCells = mesh_file.dim["nCells"]
-        mpasOcean.nEdges = mesh_file.dim["nEdges"]
-        mpasOcean.nVertices = mesh_file.dim["nVertices"]
-        mpasOcean.vertexDegree = mesh_file.dim["vertexDegree"]
-        mpasOcean.nVertLevels = nvlevels
-
-        # will be incremented in ocn_init_routines_compute_max_level
-        mpasOcean.nNonPeriodicBoundaryEdges = 0
-        mpasOcean.nNonPeriodicBoundaryVertices = 0
-        mpasOcean.nNonPeriodicBoundaryCells = 0
-
-        nCells = mpasOcean.nCells
-        nEdges = mpasOcean.nEdges
-        nVertices = mpasOcean.nVertices
-
-        # Choose my_mesh_file_name to be either base_mesh_file_name or mesh_file_name
-        my_mesh_file_name = mesh_file_name
-        # Choose my_mesh_file to be either base_mesh_file or mesh_file
-        my_mesh_file = mesh_file
-
-        mpasOcean.cellsOnCell = my_mesh_file["cellsOnCell"][:]
-        mpasOcean.nEdgesOnCell = base_mesh_file["nEdgesOnCell"][:]
-        mpasOcean.edgesOnCell = my_mesh_file["edgesOnCell"][:]
-        mpasOcean.verticesOnCell = my_mesh_file["verticesOnCell"][:]
-
-        mpasOcean.cellsOnEdge = my_mesh_file["cellsOnEdge"][:]
-        mpasOcean.nEdgesOnEdge = base_mesh_file["nEdgesOnEdge"][:]
-        mpasOcean.edgesOnEdge = my_mesh_file["edgesOnEdge"][:]
-        mpasOcean.verticesOnEdge = my_mesh_file["verticesOnEdge"][:]
-
-        mpasOcean.cellsOnVertex = my_mesh_file["cellsOnVertex"][:]
-        mpasOcean.edgesOnVertex = my_mesh_file["edgesOnVertex"][:]
-        #
+		# will be incremented in ocn_init_routines_compute_max_level
+		mpasOcean.nNonPeriodicBoundaryEdges = 0
+		mpasOcean.nNonPeriodicBoundaryVertices = 0
+		mpasOcean.nNonPeriodicBoundaryCells = 0
 
 
-        mpasOcean.angleEdge = my_mesh_file["angleEdge"][:]
-        # if true
-        mpasOcean.angleEdge[:] = fix_angleEdge(mesh_directory,my_mesh_file_name,determineYCellAlongLatitude=true,
-                                   printOutput=false,printRelevantMeshData=false)
-        # end
+		if cells == Colon()
+			cells = 1:nGlobalCells
+		end
+
+		mpasOcean.edgesOnCell = my_mesh_file["edgesOnCell"][:]
+		mpasOcean.verticesOnCell = my_mesh_file["verticesOnCell"][:]
+
+		edges = collect(Set(mpasOcean.edgesOnCell[:,cells]))
+		vertices = collect(Set(mpasOcean.verticesOnCell[:,cells]))
+
+	# end
+	# @timeit tmr "tolocal" begin
+
+		# cells = collect(cells)
+		# globtolocalcell = spzeros(nGlobalCells) #Dict{Int64,Int64}()
+		# for (iLocal, iGlobal) in enumerate(cells)
+		# 	globtolocalcell[iGlobal] = iLocal
+		# end
+		#
+		# # edges = collect(edges)
+		# globtolocaledge = spzeros(nGlobalEdges) #Dict{Int64,Int64}()
+		# for (iLocal, iGlobal) in enumerate(edges)
+		# 	globtolocaledge[iGlobal] = iLocal
+		# end
+		#
+		# # vertices = collect(vertices)
+		# globtolocalvertex = spzeros(nGlobalVertices) #Dict{Int64,Int64}()
+		# for (iLocal, iGlobal) in enumerate(vertices)
+		# 	globtolocalvertex[iGlobal] = iLocal
+		# end
+		#
+		# function globalToLocal(globals, globmap)
+		# 	mapped = map(iGlobal -> (iGlobal==0 && return 0; return globmap[iGlobal]), globals)
+		# 	return sort(mapped, dims=2, rev=true) # move 0s to the end of each row, so its like a ragged array
+		# end
+
+		# mycells = collect(cells)
+	    globtolocalcell = Dict{Int64,Int64}()
+	    for (iLocal, iGlobal) in enumerate(cells)
+		    globtolocalcell[iGlobal] = iLocal
+	    end
+	    # myedges = collect(edges)
+	    globtolocaledge = Dict{Int64,Int64}()
+	    for (iLocal, iGlobal) in enumerate(edges)
+		    globtolocaledge[iGlobal] = iLocal
+	    end
+	    # myvertices = collect(vertices)
+	    globtolocalvertex = Dict{Int64,Int64}()
+	    for (iLocal, iGlobal) in enumerate(vertices)
+		    globtolocalvertex[iGlobal] = iLocal
+	    end
+
+		# function globalToLocal(globals, globmap)
+		# 	map!(iGlobal -> (if iGlobal in keys(globmap) return globmap[iGlobal] else return 0; end),
+		# 	    	globals, globals)
+		# 	return sort(globals, dims=2, rev=true) # move 0s to the end of each row, so its like a ragged array
+		# end
+		function globalToLocal!(globals, globmap)
+			for i in 1:length(globals)
+				if globals[i] in keys(globmap)
+					globals[i] = globmap[globals[i]]
+				else
+					globals[i] = 0
+				end
+			end
+		end
+
+		mpasOcean.nCells = nCells = length(cells)
+		mpasOcean.nVertices = nVertices = length(vertices)
+		mpasOcean.nEdges = nEdges = length(edges)
+# end
+# @timeit tmr "mesh on cell" begin
+
+
+		mpasOcean.cellsOnCell = my_mesh_file["cellsOnCell"][:][:,cells]#, globtolocalcell)
+		mpasOcean.edgesOnCell = my_mesh_file["edgesOnCell"][:][:,cells]#, globtolocaledge)
+		mpasOcean.verticesOnCell = my_mesh_file["verticesOnCell"][:][:,cells]#, globtolocalvertex)
+# end
+# @timeit tmr "mesh on edge" begin
+		mpasOcean.cellsOnEdge = my_mesh_file["cellsOnEdge"][:][:,edges]# :: Array{Int64,2}#, globtolocalcell)
+		# mpasOcean.nEdgesOnEdge = base_mesh_file["nEdgesOnEdge"][:][edges]
+		mpasOcean.edgesOnEdge = my_mesh_file["edgesOnEdge"][:][:,edges]# :: Array{Int64,2}
+		mpasOcean.verticesOnEdge = my_mesh_file["verticesOnEdge"][:][:,edges]# :: Array{Int64,2}
+# end
+# @timeit tmr "mesh on vertex" begin
+		mpasOcean.cellsOnVertex = my_mesh_file["cellsOnVertex"][:][:,vertices]
+		mpasOcean.edgesOnVertex = my_mesh_file["edgesOnVertex"][:][:,vertices]
+		#
+
+# end
+# @timeit tmr "mut" begin
+
+
+		globalToLocal!(mpasOcean.cellsOnCell, globtolocalcell)# = my_mesh_file["cellsOnCell"][:][:,cells]#, globtolocalcell)
+		globalToLocal!(mpasOcean.edgesOnCell, globtolocaledge)# = my_mesh_file["edgesOnCell"][:][:,cells]#, globtolocaledge)
+		globalToLocal!(mpasOcean.verticesOnCell, globtolocalvertex)# = my_mesh_file["verticesOnCell"][:][:,cells]#, globtolocalvertex)
+
+		globalToLocal!(mpasOcean.cellsOnEdge, globtolocalcell)# = my_mesh_file["cellsOnEdge"][:][:,edges]#, globtolocalcell)
+		globalToLocal!(mpasOcean.edgesOnEdge, globtolocaledge)# = my_mesh_file["edgesOnEdge"][:][:,edges], globtolocaledge)
+		globalToLocal!(mpasOcean.verticesOnEdge, globtolocalvertex)# = globalToLocal(my_mesh_file["verticesOnEdge"][:][:,edges], globtolocalvertex)
+
+		globalToLocal!(mpasOcean.cellsOnVertex, globtolocalcell)# = globalToLocal(my_mesh_file["cellsOnVertex"][:][:,vertices], globtolocalcell)
+		globalToLocal!(mpasOcean.edgesOnVertex, globtolocaledge)#
+# end
+# @timeit tmr "count" begin
+		mpasOcean.nEdgesOnCell = dropdims(sum(map(val -> Int64(val != 0), mpasOcean.edgesOnCell), dims=1), dims=1) #base_mesh_file["nEdgesOnCell"][:][cells]
+		mpasOcean.nEdgesOnEdge = dropdims(sum(map(val -> Int64(val != 0), mpasOcean.edgesOnEdge), dims=1), dims=1) #base_mesh_file["nEdgesOnCell"][:][cells]
+# end
+# @timeit tmr "coords" begin
+
+		mpasOcean.xEdge = my_mesh_file["xEdge"][:][edges]
+		mpasOcean.yEdge = my_mesh_file["yEdge"][:][edges]
+
+
+		mpasOcean.latCell = base_mesh_file["latCell"][:][cells]
+		mpasOcean.lonCell = base_mesh_file["lonCell"][:][cells]
+		mpasOcean.xCell = base_mesh_file["xCell"][:][cells]
+		mpasOcean.yCell = base_mesh_file["yCell"][:][cells]
+
+		mpasOcean.areaCell = my_mesh_file["areaCell"][:][cells]
+		mpasOcean.dvEdge = my_mesh_file["dvEdge"][:][cells]
+		mpasOcean.dcEdge = my_mesh_file["dcEdge"][:][cells]
+
+		# mpasOcean.kiteAreasOnVertex = my_mesh_file["kiteAreasOnVertex"][:][:,vertices]
+		# mpasOcean.areaTriangle = my_mesh_file["areaTriangle"][:][:,vertices]
+
+
+		mpasOcean.latVertex = base_mesh_file["latVertex"][:][vertices]
+		mpasOcean.lonVertex = base_mesh_file["lonVertex"][:][vertices]
+		mpasOcean.xVertex = base_mesh_file["xVertex"][:][vertices]
+		mpasOcean.yVertex = base_mesh_file["yVertex"][:][vertices]
+
+
+	#         mpasOcean.gridSpacing = mesh_file["gridSpacing"][:]
+		mpasOcean.gridSpacing = sqrt.(mpasOcean.areaCell)#mpasOcean.xCell[2] - mpasOcean.xCell[1]
+
+		useGridSpacingMagnitudeDefaultDefinition = true
+		if useGridSpacingMagnitudeDefaultDefinition
+			mpasOcean.gridSpacingMagnitude = mpasOcean.gridSpacing[0+1]
+		else
+			mpasOcean.gridSpacingMagnitude = mpasOcean.xCell[1+1] - mpasOcean.xCell[0+1]
+		end
+
+
+		# For a mesh with non-periodic zonal boundaries, adjust the zonal coordinates of the cell centers,
+		# vertices and edges.
+		dx = mpasOcean.gridSpacingMagnitude # Int64.e. dx = mpasOcean.dcEdge[0]
+		dy = sqrt(3.0)/2.0*dx
+		if periodicity == "NonPeriodic_x" || periodicity == "NonPeriodic_xy"
+			mpasOcean.xCell[:] .-= dx
+			mpasOcean.xVertex[:] .-= dx
+			mpasOcean.xEdge[:] .-= dx
+		end
+		if periodicity == "NonPeriodic_y" || periodicity == "NonPeriodic_xy"
+			mpasOcean.yCell[:] .-= dy
+			mpasOcean.yVertex[:] .-= dy
+			mpasOcean.yEdge[:] .-= dy
+		end
+
+		# Specify the zonal && meridional extents of the domain.
+		mpasOcean.lX = round(maximum(mpasOcean.xCell)) # Int64.e. mpasOcean.lX = sqrt(float(mpasOcean.nCells))*dx
+		# Please note that for all of our test problems, the MPAS-O mesh is generated in such a way that
+		# mpasOcean.lX Int64.e. the number of cells in the x (|| y) direction times dx has zero fractional part in
+		# units of m, for which we can afford to round it to attain perfection.
+		mpasOcean.lY = sqrt(3.0)/2.0*mpasOcean.lX # Int64.e. mpasOcean.lY = max(mpasOcean.yVertex)
+
+# end
+# @timeit tmr "angleedge" begin
+				mpasOcean.angleEdge = my_mesh_file["angleEdge"][:][edges]
+				# if true
+				mpasOcean.angleEdge[:] = fix_angleEdge(mpasOcean,determineYCellAlongLatitude=true,
+										   printOutput=false,printRelevantMeshData=false)[edges]
+				# end
+
+# end
+# @timeit tmr "zeros1" begin
+	#         mpasOcean.ExactSolutionParameters = DetermineExactSolutionParameters(mpasOcean,false)
+		# Define && initialize the following arrays not contained within either the base mesh file || the mesh
+		# file.
+		mpasOcean.fVertex = zeros(Float64, nVertices)
+		mpasOcean.fCell = zeros(Float64, nCells)
+		mpasOcean.fEdge = zeros(Float64, nEdges)
+		mpasOcean.bottomDepth = zeros(Float64, nCells)
+		mpasOcean.bottomDepthEdge = zeros(Float64, nEdges)
+
+		mpasOcean.layerThickness = zeros(Float64, (nCells, mpasOcean.nVertLevels))
+		mpasOcean.layerThicknessEdge = zeros(Float64, (nEdges, mpasOcean.nVertLevels))
+
+		DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
+# end
+# @timeit tmr "max edge z" begin
+		# mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells,maxEdges))
+		mpasOcean.edgeSignOnVertex = zeros(Int8, (nVertices,maxEdges))
+
+		# mpasOcean.weightsOnEdge = zeros(Float64, (nEdges,maxEdges))
+		# NCDatasets.load!(NCDatasets.variable(my_mesh_file,"weightsOnEdge"),mpasOcean.weightsOnEdge,:,:)[:,edges]
+		mpasOcean.weightsOnEdge = my_mesh_file["weightsOnEdge"][:][:,edges]
+
+		mpasOcean.edgeSignOnCell = zeros(Int8, (nCells,maxEdges))
+# end
+# @timeit tmr "zeros" begin
+		ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
+
+
+		mpasOcean.boundaryCell = zeros(Int64, (nCells, mpasOcean.nVertLevels))
+		mpasOcean.boundaryEdge = zeros(Int64, (nEdges, mpasOcean.nVertLevels))
+		mpasOcean.boundaryVertex = zeros(Int64, (nVertices, mpasOcean.nVertLevels))
+		mpasOcean.cellMask = zeros(Int64, (nCells, mpasOcean.nVertLevels))
+		mpasOcean.edgeMask = zeros(Int64, (nEdges, mpasOcean.nVertLevels))
+		mpasOcean.vertexMask = zeros(Int64, (nVertices, mpasOcean.nVertLevels))
+
+		mpasOcean.maxLevelCell = zeros(Int64, nCells)
+		mpasOcean.maxLevelEdgeTop = zeros(Int64, nEdges)
+		mpasOcean.maxLevelEdgeBot = zeros(Int64, nEdges)
+		mpasOcean.maxLevelVertexTop = zeros(Int64, nVertices)
+		mpasOcean.maxLevelVertexBot = zeros(Int64, nVertices)
+
+# end
+# @timeit tmr "tendency" begin
 
 
 
-        mpasOcean.xEdge = my_mesh_file["xEdge"][:]
-        mpasOcean.yEdge = my_mesh_file["yEdge"][:]
 
+		## defining the prognostic variables
+		mpasOcean.sshCurrent = zeros(Float64, nCells)
+		mpasOcean.sshTendency = zeros(Float64, nCells)
 
-        mpasOcean.latCell = base_mesh_file["latCell"][:]
-        mpasOcean.lonCell = base_mesh_file["lonCell"][:]
-        mpasOcean.xCell = base_mesh_file["xCell"][:]
-        mpasOcean.yCell = base_mesh_file["yCell"][:]
+		mpasOcean.normalVelocityCurrent = zeros(Float64, (nEdges, mpasOcean.nVertLevels))
+		mpasOcean.normalVelocityTendency = zeros(Float64, (nEdges, mpasOcean.nVertLevels))
 
-        mpasOcean.areaCell = my_mesh_file["areaCell"][:]
-        mpasOcean.dvEdge = my_mesh_file["dvEdge"][:]
-        mpasOcean.dcEdge = my_mesh_file["dcEdge"][:]
+		mpasOcean.gravity = 9.8
 
-        mpasOcean.kiteAreasOnVertex = my_mesh_file["kiteAreasOnVertex"][:]
-        mpasOcean.areaTriangle = my_mesh_file["areaTriangle"][:]
+		# calculate minimum dt based on CFL condition
+		mpasOcean.dt = 0.1 * minimum(mpasOcean.dcEdge) / sqrt(mpasOcean.gravity * maximum(mpasOcean.bottomDepth))
 
+		ocn_init_routines_compute_max_level!(mpasOcean)
+# end
+# show(tmr)
+		return mpasOcean
+	end
+end
 
-        mpasOcean.latVertex = base_mesh_file["latVertex"][:]
-        mpasOcean.lonVertex = base_mesh_file["lonVertex"][:]
-        mpasOcean.xVertex = base_mesh_file["xVertex"][:]
-        mpasOcean.yVertex = base_mesh_file["yVertex"][:]
-
-
-#         mpasOcean.gridSpacing = mesh_file["gridSpacing"][:]
-	mpasOcean.gridSpacing = sqrt.(mpasOcean.areaCell)#mpasOcean.xCell[2] - mpasOcean.xCell[1]
-
-        useGridSpacingMagnitudeDefaultDefinition = true
-        if useGridSpacingMagnitudeDefaultDefinition
-            mpasOcean.gridSpacingMagnitude = mpasOcean.gridSpacing[0+1]
-        else
-            mpasOcean.gridSpacingMagnitude = mpasOcean.xCell[1+1] - mpasOcean.xCell[0+1]
-        end
-
-
-        # For a mesh with non-periodic zonal boundaries, adjust the zonal coordinates of the cell centers,
-        # vertices and edges.
-        dx = mpasOcean.gridSpacingMagnitude # i.e. dx = mpasOcean.dcEdge[0]
-        dy = sqrt(3.0)/2.0*dx
-        if periodicity == "NonPeriodic_x" || periodicity == "NonPeriodic_xy"
-            mpasOcean.xCell[:] .-= dx
-            mpasOcean.xVertex[:] .-= dx
-            mpasOcean.xEdge[:] .-= dx
-        end
-        if periodicity == "NonPeriodic_y" || periodicity == "NonPeriodic_xy"
-            mpasOcean.yCell[:] .-= dy
-            mpasOcean.yVertex[:] .-= dy
-            mpasOcean.yEdge[:] .-= dy
-        end
-
-        # Specify the zonal && meridional extents of the domain.
-        mpasOcean.lX = round(maximum(mpasOcean.xCell)) # i.e. mpasOcean.lX = sqrt(float(mpasOcean.nCells))*dx
-        # Please note that for all of our test problems, the MPAS-O mesh is generated in such a way that
-        # mpasOcean.lX i.e. the number of cells in the x (|| y) direction times dx has zero fractional part in
-        # units of m, for which we can afford to round it to attain perfection.
-        mpasOcean.lY = sqrt(3.0)/2.0*mpasOcean.lX # i.e. mpasOcean.lY = max(mpasOcean.yVertex)
-
-
-#         mpasOcean.ExactSolutionParameters = DetermineExactSolutionParameters(mpasOcean,false)
-        # Define && initialize the following arrays not contained within either the base mesh file || the mesh
-        # file.
-        mpasOcean.fVertex = zeros(F, nVertices)
-        mpasOcean.fCell = zeros(F, nCells)
-        mpasOcean.fEdge = zeros(F, nEdges)
-        mpasOcean.bottomDepth = zeros(F, nCells)
-        mpasOcean.bottomDepthEdge = zeros(F, nEdges)
-
-        mpasOcean.layerThickness = zeros(F, (nCells, mpasOcean.nVertLevels))
-        mpasOcean.layerThicknessEdge = zeros(F, (nEdges, mpasOcean.nVertLevels))
-
-        DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
-
-        mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells,maxEdges))
-        mpasOcean.edgeSignOnVertex = zeros(Int8, (nVertices,maxEdges))
-
-
-        mpasOcean.weightsOnEdge = my_mesh_file["weightsOnEdge"][:]
-
-        mpasOcean.edgeSignOnCell = zeros(Int8, (nCells,maxEdges))
-        ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
-
-
-        mpasOcean.boundaryCell = zeros(Int8, (nCells, mpasOcean.nVertLevels))
-        mpasOcean.boundaryEdge = zeros(Int8, (nEdges, mpasOcean.nVertLevels))
-        mpasOcean.boundaryVertex = zeros(Int8, (nVertices, mpasOcean.nVertLevels))
-        mpasOcean.cellMask = zeros(Int8, (nCells, mpasOcean.nVertLevels))
-        mpasOcean.edgeMask = zeros(Int8, (nEdges, mpasOcean.nVertLevels))
-        mpasOcean.vertexMask = zeros(Int8, (nVertices, mpasOcean.nVertLevels))
-
-        mpasOcean.maxLevelCell = zeros(Int64, nCells)
-        mpasOcean.maxLevelEdgeTop = zeros(Int64, nEdges)
-        mpasOcean.maxLevelEdgeBot = zeros(Int64, nEdges)
-        mpasOcean.maxLevelVertexTop = zeros(Int64, nVertices)
-        mpasOcean.maxLevelVertexBot = zeros(Int64, nVertices)
-
-
-
-
-
-
-        ## defining the prognostic variables
-        mpasOcean.sshCurrent = zeros(F, nCells)
-        mpasOcean.sshTendency = zeros(F, nCells)
-
-        mpasOcean.normalVelocityCurrent = zeros(F, (nEdges, mpasOcean.nVertLevels))
-        mpasOcean.normalVelocityTendency = zeros(F, (nEdges, mpasOcean.nVertLevels))
-
-        mpasOcean.gravity = 9.8
-
-        # calculate minimum dt based on CFL condition
-        mpasOcean.dt = 0.1 * minimum(mpasOcean.dcEdge) / sqrt(mpasOcean.gravity * maximum(mpasOcean.bottomDepth))
-
-        ocn_init_routines_compute_max_level!(mpasOcean)
-
-        return mpasOcean
-    end
+#=
+function MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
+					base_mesh_file_name = "base_mesh.nc",
+					mesh_file_name = "mesh.nc";
+					nvlevels =1,
+					periodicity = "Periodic")# where Float64<:AbstractFloat
+	return MPAS_Ocean(mesh_directory, base_mesh_file_name, mesh_file_name; nvlevels=nvlevels, periodicity=periodicity, cells=:)
 end
 function MPAS_Ocean(temp::Bool, mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
                         base_mesh_file_name = "base_mesh.nc",
@@ -320,7 +606,7 @@ function MPAS_Ocean(init_state_file_name; periodicity="Periodic")
     return mpasOcean
 end
 
-
+=#
 
 
 function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
@@ -413,40 +699,33 @@ end
 
 function ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
     for iCell in range(1,mpasOcean.nCells,step=1)
-        for i in range(1,mpasOcean.nEdgesOnCell[iCell],step=1)
-            iEdge = mpasOcean.edgesOnCell[i,iCell]
-            iVertex = mpasOcean.verticesOnCell[i,iCell]
+        for Int64 in range(1,mpasOcean.nEdgesOnCell[iCell],step=1)
+            iEdge = mpasOcean.edgesOnCell[Int64,iCell]
+            iVertex = mpasOcean.verticesOnCell[Int64,iCell]
             # Vector points from cell 1 to cell 2
             if mpasOcean.cellsOnEdge[1,iEdge] == iCell
-                mpasOcean.edgeSignOnCell[iCell,i] = -1
+                mpasOcean.edgeSignOnCell[iCell,Int64] = -1
             else
-                mpasOcean.edgeSignOnCell[iCell,i] = 1
+                mpasOcean.edgeSignOnCell[iCell,Int64] = 1
             end
-            for j in range(1,mpasOcean.vertexDegree,step=1)
-                if mpasOcean.cellsOnVertex[j,iVertex] == iCell
-                    mpasOcean.kiteIndexOnCell[iCell,i] = j
-                end
-            end
+            # for j in range(1,mpasOcean.vertexDegree,step=1)
+            #     if mpasOcean.cellsOnVertex[j,iVertex] == iCell
+            #         mpasOcean.kiteIndexOnCell[iCell,Int64] = j
+            #     end
+            # end
         end
     end
-#     printKiteIndexOnCell = false
-#     if printKiteIndexOnCell
-#         for iCell in range(1,mpasOcean.nCells,step=1)
-#             for i in range(1,mpasOcean.nEdgesOnCell[iCell],step=1)
-#                 println("On edge $i of cell $iCell, kiteIndexOnCell is $(mpasOcean.kiteIndexOnCell[iCell,i]).")
-#             end
-#         end
-#     end
+
 
     for iVertex in range(1,mpasOcean.nVertices,step=1)
-        for i in range(1,mpasOcean.vertexDegree,step=1)
-            iEdge = mpasOcean.edgesOnVertex[i,iVertex]
+        for Int64 in range(1,mpasOcean.vertexDegree,step=1)
+            iEdge = mpasOcean.edgesOnVertex[Int64,iVertex]
             if iEdge != 0
                 # Vector points from vertex 1 to vertex 2
                 if mpasOcean.verticesOnEdge[1,iEdge] == iVertex
-                    mpasOcean.edgeSignOnVertex[iVertex,i] = -1
+                    mpasOcean.edgeSignOnVertex[iVertex,Int64] = -1
                 else
-                    mpasOcean.edgeSignOnVertex[iVertex,i] = 1
+                    mpasOcean.edgeSignOnVertex[iVertex,Int64] = 1
                 end
             end
         end
@@ -485,8 +764,8 @@ function ocn_init_routines_compute_max_level!(mpasOcean)
             mpasOcean.maxLevelVertexTop[iVertex] = mpasOcean.maxLevelCell[iCell1]
         end
 
-        for i in 1:mpasOcean.vertexDegree
-            iCell = mpasOcean.cellsOnVertex[i, iVertex]
+        for Int64 in 1:mpasOcean.vertexDegree
+            iCell = mpasOcean.cellsOnVertex[Int64, iVertex]
             if iCell == 0
                 mpasOcean.maxLevelVertexBot[iVertex] = max(mpasOcean.maxLevelVertexBot[iVertex], -1)
                 mpasOcean.maxLevelVertexBot[iVertex] = min(mpasOcean.maxLevelVertexTop[iVertex], -1)
@@ -568,146 +847,3 @@ function ocn_init_routines_compute_max_level!(mpasOcean)
         end
     end
 end
-
-
-# function DetermineExactSolutionParameters(mpasOcean,printPhaseSpeedOfWaveModes)
-#     angleEdge = 0.0
-#     beta0 = mpasOcean.myNamelist.config_meridional_gradient_of_Coriolis_parameter
-#     c = mpasOcean.myNamelist.config_phase_speed_of_coastal_Kelvin_wave
-#     dx = mpasOcean.gridSpacingMagnitude # i.e. dx = mpasOcean.dcEdge[0+1]
-#     dy = sqrt(3.0)/2.0*dx
-#     etaHat1 = mpasOcean.myNamelist.config_surface_elevation_amplitude
-#     if mpasOcean.myNamelist.config_problem_type == "Viscous_Burgers_Equation"
-#         etaHat2 = 0.0
-#     else
-#         etaHat2 = 2.0*etaHat1
-#     end
-#     f0 = mpasOcean.myNamelist.config_Coriolis_parameter
-#     g = mpasOcean.myNamelist.config_gravity
-#     H = mpasOcean.myNamelist.config_mean_depth
-#     if mpasOcean.myNamelist.config_problem_type == "Topographic_Rossby_Wave"
-#         alpha0 = beta0*H/f0
-#         # In the Northern Hemisphere where f0 > 0, the topographic Rossby wave travels with the shallower water on
-#         # its right. Hence if alpha0 > 0 i.e. the ocean depth increases northward, the topographic Rossby wave
-#         # will propagate eastward else it will propagate westward.
-#         mpasOcean.myNamelist.config_bottom_slope = alpha0
-#     else
-#         alpha0 = mpasOcean.myNamelist.config_bottom_slope # alpha0 = 0.0
-#     end
-#     if mpasOcean.myNamelist.config_problem_type == "Barotropic_Tide"
-#         kX1 = 2.5*pi/mpasOcean.lX
-#         kY1 = 0.0
-#         kX2 = 4.5*pi/mpasOcean.lX
-#         kY2 = 0.0
-#     elseif mpasOcean.myNamelist.config_problem_type == "Viscous_Burgers_Equation"
-#         kX1 = 0.0
-#         kY1 = 0.0
-#         kX2 = 0.0
-#         kY2 = 0.0
-#     else
-#         kX1 = 2.0*pi/mpasOcean.lX
-#         kY1 = 2.0*pi/mpasOcean.lY
-#         kX2 = 2.0*kX1
-#         kY2 = 2.0*kY1
-#     end
-#     lX = mpasOcean.lX
-#     lY = mpasOcean.lY
-#     R = mpasOcean.myNamelist.config_radius_of_deformation
-#     Req = mpasOcean.myNamelist.config_equatorial_radius_of_deformation
-#     LengthScale = sqrt(c/beta0)
-#     TimeScale = 1.0/sqrt(beta0*c)
-#     VelocityScale = c
-#     SurfaceElevationScale = c^2.0/g
-#     if (mpasOcean.myNamelist.config_problem_type == "default"
-#         || mpasOcean.myNamelist.config_problem_type == "Coastal_Kelvin_Wave")
-#         omega1 = -c*kY1
-#         omega2 = -c*kY2
-#     elseif mpasOcean.myNamelist.config_problem_type == "Inertia_Gravity_Wave"
-#         omega1 = sqrt(g*H*(kX1^2.0 + kY1^2.0) + f0^2.0)
-#         omega2 = sqrt(g*H*(kX2^2.0 + kY2^2.0) + f0^2.0)
-#     elseif mpasOcean.myNamelist.config_problem_type == "Planetary_Rossby_Wave"
-#         omega1 = -beta0*R^2.0*kX1/(1.0 + R^2.0*(kX1^2.0 + kY1^2.0))
-#         omega2 = -beta0*R^2.0*kX2/(1.0 + R^2.0*(kX2^2.0 + kY2^2.0))
-#     elseif mpasOcean.myNamelist.config_problem_type == "Topographic_Rossby_Wave"
-#         omega1 = alpha0*g/f0*kX1/(1.0 + R^2.0*(kX1^2.0 + kY1^2.0))
-#         omega2 = alpha0*g/f0*kX2/(1.0 + R^2.0*(kX2^2.0 + kY2^2.0))
-#     elseif mpasOcean.myNamelist.config_problem_type == "Equatorial_Kelvin_Wave"
-#         omega1 = c*kX1
-#         omega2 = c*kX2
-#     elseif mpasOcean.myNamelist.config_problem_type == "Equatorial_Yanai_Wave"
-#         omega1 = GWESST.DetermineEquatorialYanaiWaveNonDimensionalAngularFrequency(LengthScale*kX1)/TimeScale
-#         omega2 = GWESST.DetermineEquatorialYanaiWaveNonDimensionalAngularFrequency(LengthScale*kX2)/TimeScale
-#     elseif mpasOcean.myNamelist.config_problem_type == "Equatorial_Rossby_Wave"
-#         omega1 = GWESST.DetermineEquatorialRossbyAndInertiaGravityWaveNonDimensionalAngularFrequency(
-#                  "Equatorial_Rossby_Wave",LengthScale*kX1,m=1)/TimeScale
-#         omega2 = GWESST.DetermineEquatorialRossbyAndInertiaGravityWaveNonDimensionalAngularFrequency(
-#                  "Equatorial_Rossby_Wave",LengthScale*kX2,m=1)/TimeScale
-#     elseif mpasOcean.myNamelist.config_problem_type == "Equatorial_Inertia_Gravity_Wave"
-#         omega1 = GWESST.DetermineEquatorialRossbyAndInertiaGravityWaveNonDimensionalAngularFrequency(
-#                  "Equatorial_Inertia_Gravity_Wave",LengthScale*kX1,m=2)/TimeScale
-#         omega2 = GWESST.DetermineEquatorialRossbyAndInertiaGravityWaveNonDimensionalAngularFrequency(
-#                  "Equatorial_Inertia_Gravity_Wave",LengthScale*kX2,m=2)/TimeScale
-#     elseif mpasOcean.myNamelist.config_problem_type == "Barotropic_Tide"
-#         omega1 = sqrt(g*H*kX1^2.0 + f0^2.0)
-#         omega2 = sqrt(g*H*kX2^2.0 + f0^2.0)
-#     elseif (mpasOcean.myNamelist.config_problem_type == "Diffusion_Equation"
-#           || mpasOcean.myNamelist.config_problem_type == "Viscous_Burgers_Equation")
-#         omega1 = 0.0
-#         omega2 = 0.0
-#     end
-#     if (mpasOcean.myNamelist.config_problem_type == "default"
-#         || mpasOcean.myNamelist.config_problem_type == "Coastal_Kelvin_Wave")
-#         cX1 = 0.0
-#         cY1 = -c # cY1 = omega1/kY1 = -c
-#         cX2 = 0.0
-#         cY2 = -c # cY2 = omega2/kY2 = -c
-#     elseif mpasOcean.myNamelist.config_problem_type_Equatorial_Wave
-#         if mpasOcean.myNamelist.config_problem_type == "Equatorial_Kelvin_Wave"
-#             cX1 = c
-#             cY1 = 0.0
-#             cX2 = c
-#             cY2 = 0.0
-#         else
-#             cX1 = omega1/kX1
-#             cY1 = 0.0
-#             cX2 = omega2/kX2
-#             cY2 = 0.0
-#         end
-#     elseif mpasOcean.myNamelist.config_problem_type == "Barotropic_Tide"
-#         cX1 = omega1/kX1
-#         cY1 = 0.0
-#         cX2 = omega2/kX2
-#         cY2 = 0.0
-#     elseif (mpasOcean.myNamelist.config_problem_type == "Diffusion_Equation"
-#           || mpasOcean.myNamelist.config_problem_type == "Viscous_Burgers_Equation")
-#         cX1 = 0.0
-#         cY1 = 0.0
-#         cX2 = 0.0
-#         cY2 = 0.0
-#     else
-#         cX1 = omega1/kX1
-#         cY1 = omega1/kY1
-#         cX2 = omega2/kX2
-#         cY2 = omega2/kY2
-#     end
-#     if ((mpasOcean.myNamelist.config_problem_type_Geophysical_Wave
-#          || mpasOcean.myNamelist.config_problem_type == "Barotropic_Tide") && printPhaseSpeedOfWaveModes)
-#         println("The zonal component of the phase speed of the first wave mode is %.4g." %cX1)
-#         println("The meridional component of the phase speed of the first wave mode is %.4g." %cY1)
-#         println("The zonal component of the phase speed of the second wave mode is %.4g." %cX2)
-#         println("The meridional component of the phase speed of the second wave mode is %.4g." %cY2)
-#     end
-#     kappaX = mpasOcean.myNamelist.config_zonal_diffusivity
-#     kappaY = mpasOcean.myNamelist.config_meridional_diffusivity
-#     kappa1 = kappaX*kX1^2.0 + kappaY*kY1^2.0
-#     kappa2 = kappaX*kX2^2.0 + kappaY*kY2^2.0
-#     uL = mpasOcean.myNamelist.config_viscous_Burgers_zonal_velocity_left
-#     uR = mpasOcean.myNamelist.config_viscous_Burgers_zonal_velocity_right
-#     s = mpasOcean.myNamelist.config_viscous_Burgers_shock_speed
-#     mpasOcean.myNamelist.config_viscous_Burgers_zonal_offset = 0.25*lX
-#     x0 = mpasOcean.myNamelist.config_viscous_Burgers_zonal_offset
-#     ExactSolutionParameters = [alpha0,angleEdge,beta0,c,cX1,cX2,cY1,cY2,dx,dy,etaHat1,etaHat2,f0,g,H,kX1,kX2,kY1,
-#                                kY2,lX,lY,omega1,omega2,R,Req,LengthScale,TimeScale,VelocityScale,
-#                                SurfaceElevationScale,kappaX,kappaY,kappa1,kappa2,uL,uR,s,x0]
-#     return ExactSolutionParameters
-# end

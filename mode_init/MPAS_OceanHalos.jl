@@ -189,7 +189,7 @@ function sizeof_main_arrays(mpasOcean::MPAS_Ocean, cells, edges)
     return size
 end
 
-function grow_halo(mpasOcean::MPAS_Ocean, cells::Array{Int64,1}, radius::Int64)
+function grow_halo(cellsOnCell::Array{Int64,2}, cells::Array{Int64,1}, radius::Int64)
     # grow halo from edge of region
     outerCells::Array{Int64,1} = copy(cells)
     newCells::Array{Int64,1} = []
@@ -198,7 +198,7 @@ function grow_halo(mpasOcean::MPAS_Ocean, cells::Array{Int64,1}, radius::Int64)
     for i in 1:radius
         for iCell in outerCells
 	    	if iCell != 0
-                for jCell in mpasOcean.cellsOnCell[:,iCell]
+                for jCell in cellsOnCell[iCell,:]
 					if !(jCell in newCells) && !(jCell in outerCells) && !(jCell in cells) && !(jCell in haloCells) && !(jCell == 0)
                         append!(newCells, jCell) #
                     end
@@ -211,6 +211,10 @@ function grow_halo(mpasOcean::MPAS_Ocean, cells::Array{Int64,1}, radius::Int64)
     end
 
     return haloCells
+end
+
+function grow_halo(mpasOcean::MPAS_Ocean, cells::Array{Int64,1}, radius::Int64)
+    return grow_halo(mpasOcean.cellsOnCell, cells, radius)
 end
 
 function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
@@ -236,14 +240,14 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :verticesOnCell,
     ]
     cell2djiFields = [
-	:edgeSignOnCell,
+		:edgeSignOnCell,
         :boundaryCell,
-	:cellMask,
+		:cellMask,
     ]
     cellIndexFields = [
-	:cellsOnCell,
-	:cellsOnEdge,
-	:cellsOnVertex
+		:cellsOnCell,
+		:cellsOnEdge,
+		:cellsOnVertex
     ]
 
 
@@ -263,18 +267,18 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :cellsOnEdge,
         :edgesOnEdge,
         :verticesOnEdge,
-	:weightsOnEdge,
+		:weightsOnEdge,
     ]
     edge2djiFields = [
         :normalVelocityCurrent,
         :normalVelocityTendency,
-	:boundaryEdge,
-	:edgeMask,
+		:boundaryEdge,
+		:edgeMask,
     ]
     edgeIndexFields = [
-	:edgesOnCell,
-	:edgesOnEdge,
-	:edgesOnVertex,
+		:edgesOnCell,
+		:edgesOnEdge,
+		:edgesOnVertex,
     ]
 
 
@@ -295,13 +299,13 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
         :edgesOnVertex,
     ]
     vertex2djiFields = [
-	:edgeSignOnVertex,
+		:edgeSignOnVertex,
         :boundaryVertex,
-	:vertexMask
+		:vertexMask
     ]
     vertexIndexFields = [
-	:verticesOnCell,
-	:verticesOnEdge,
+		:verticesOnCell,
+		:verticesOnEdge,
     ]
 
 

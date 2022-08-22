@@ -1,0 +1,87 @@
+results to: /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution256x256/procs1024/steps10/nvlevels100/2022-08-18T09:38:23.451.txt
+running tests for [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] counts of processors with 6 samples per test of 10 steps each
+partitioning 256 x 256 x 100 ocean among 2 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/256x256/graph.info.part.2
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+1×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2  mpi_time3   mpi_time4   mpi_time5  mpi_time6   max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64     Float64     Float64    Float64     Float64    Float64
+─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0    10.6142    10.6191    10.6184    10.6192    10.6221    10.6219   0.359833   0.538855  0.00154195  0.00150814   0.545668  0.00158646        0.0       0.0
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution256x256/procs1024/steps10/nvlevels100/2022-08-18T09:38:23.451.txt
+freeing splitcomm
+partitioning 256 x 256 x 100 ocean among 4 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/256x256/graph.info.part.4
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+2×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2  mpi_time3   mpi_time4   mpi_time5  mpi_time6   max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64     Float64     Float64    Float64     Float64    Float64
+─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0    10.6142   10.6191    10.6184    10.6192    10.6221    10.6219    0.359833   0.538855  0.00154195  0.00150814   0.545668  0.00158646        0.0       0.0
+   2 │     4.0     3.3174    3.32686    3.32615    3.32724    3.32768    3.32868   6.90983    1.36688   1.37184     1.37691      1.37118   1.37782           0.0       0.0
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution256x256/procs1024/steps10/nvlevels100/2022-08-18T09:38:23.451.txt
+freeing splitcomm
+partitioning 256 x 256 x 100 ocean among 8 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/256x256/graph.info.part.8
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+3×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2  mpi_time3   mpi_time4   mpi_time5  mpi_time6   max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64     Float64     Float64    Float64     Float64    Float64
+─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0    10.6142   10.6191    10.6184    10.6192    10.6221    10.6219    0.359833   0.538855  0.00154195  0.00150814   0.545668  0.00158646        0.0       0.0
+   2 │     4.0     3.3174    3.32686    3.32615    3.32724    3.32768    3.32868   6.90983    1.36688   1.37184     1.37691      1.37118   1.37782           0.0       0.0
+   3 │     8.0     2.9499    3.16666    3.16658    3.16685    3.16687    3.16905   5.97603    0.319541  0.319455    0.319765     0.319352  0.319522        NaN       NaN
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution256x256/procs1024/steps10/nvlevels100/2022-08-18T09:38:23.451.txt
+freeing splitcomm
+partitioning 256 x 256 x 100 ocean among 16 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/256x256/graph.info.part.16
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+4×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2  mpi_time3   mpi_time4   mpi_time5  mpi_time6   max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64     Float64     Float64    Float64     Float64    Float64
+─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0   10.6142    10.6191    10.6184    10.6192    10.6221    10.6219    0.359833  0.538855   0.00154195  0.00150814  0.545668   0.00158646        0.0       0.0
+   2 │     4.0    3.3174     3.32686    3.32615    3.32724    3.32768    3.32868   6.90983   1.36688    1.37184     1.37691     1.37118    1.37782           0.0       0.0
+   3 │     8.0    2.9499     3.16666    3.16658    3.16685    3.16687    3.16905   5.97603   0.319541   0.319455    0.319765    0.319352   0.319522        NaN       NaN
+   4 │    16.0    1.41127    1.56818    1.56737    1.56844    1.56836    1.5688    5.66529   0.0101803  0.010357    0.0103809   0.0101308  0.00973433      NaN       NaN
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution256x256/procs1024/steps10/nvlevels100/2022-08-18T09:38:23.451.txt
+freeing splitcomm
+partitioning 256 x 256 x 100 ocean among 32 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/256x256/graph.info.part.32
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+5×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2  mpi_time3   mpi_time4   mpi_time5  mpi_time6   max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64     Float64     Float64    Float64     Float64    Float64
+─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0  10.6142    10.6191    10.6184    10.6192    10.6221     10.6219    0.359833  0.538855   0.00154195  0.00150814  0.545668   0.00158646        0.0       0.0
+   2 │     4.0   3.3174     3.32686    3.32615    3.32724    3.32768     3.32868   6.90983   1.36688    1.37184     1.37691     1.37118    1.37782           0.0       0.0
+   3 │     8.0   2.9499     3.16666    3.16658    3.16685    3.16687     3.16905   5.97603   0.319541   0.319455    0.319765    0.319352   0.319522        NaN       NaN
+   4 │    16.0   1.41127    1.56818    1.56737    1.56844    1.56836     1.5688    5.66529   0.0101803  0.010357    0.0103809   0.0101308  0.00973433      NaN       NaN
+   5 │    32.0   0.488953   0.507602   0.503534   0.503955   0.507904    0.504     6.89334   0.213637   0.304816    0.271599    0.268462   0.226657        NaN       NaN
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution256x256/procs1024/steps10/nvlevels100/2022-08-18T09:38:23.451.txt
+freeing splitcomm
+partitioning 256 x 256 x 100 ocean among 64 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/256x256/graph.info.part.64
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps

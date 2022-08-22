@@ -7,15 +7,6 @@ root = 1
 commsize = MPI.Comm_size(comm)
 
 
-
-
-function rootprint(str)
-	if worldrank == root
-		println(str)
-	end
-end
-
-
 using DelimitedFiles
 using DataFrames
 using CSV
@@ -25,6 +16,15 @@ import Plots
 import Dates
 
 using TimerOutputs
+
+
+function rootprint(str)
+	if worldrank == root
+		println("$(Dates.Time(Dates.now())): ", str)
+	end
+end
+
+
 
 
 CODE_ROOT = pwd() * "/"#../"
@@ -102,15 +102,23 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 					cellsFromChunk[chunk] = [iCell]
 				end
 			end
-
+			
 			# tell neighbors which cells they should send me
 			cellsToChunk = Dict{Int64, Array}()
 			tag = 2
 			sendreqs = Array{MPI.Request,1}()
 			recvreqs = Array{MPI.Request,1}()
+#			function fourprint(str)
+#				if worldrank == 4
+#					println("4: ", str)
+#				end
+#			end
+			MPI.Barrier(splitcomm)
 			for (chunk, cells) in cellsFromChunk
 				push!(sendreqs, MPI.Isend(cells, chunk-1, tag, splitcomm))
-
+			end
+			MPI.Barrier(splitcomm)
+			for (chunk, cells) in cellsFromChunk
 				numcells = MPI.Get_count(MPI.Probe(chunk-1, tag, splitcomm), Int64)
 				cellsToChunk[chunk] = Array{Int64,1}(undef, numcells)
 				push!(recvreqs, MPI.Irecv!(cellsToChunk[chunk], chunk-1, tag, splitcomm))
@@ -265,9 +273,13 @@ end
 halowidth = 1
 ncycles = 10
 
-proccounts = Int.(round.( 2 .^collect(1:log2(commsize)) ))
 nCellsX = parse(Int64, ARGS[1])
 nsamples = parse(Int64, ARGS[2])
+if length(ARGS) > 2
+	proccounts = parse.(Int64, split(ARGS[3], ','))
+else
+	proccounts = Int.(round.( 2 .^collect(1:log2(commsize)) ))
+end
 nvlevels = 100
 
 partitiondir = CODE_ROOT * "scaling_test/graphparts/$(nCellsX)x$(nCellsX)/"

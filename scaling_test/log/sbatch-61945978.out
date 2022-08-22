@@ -1,0 +1,80 @@
+results to: /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution128x128/procs1024/steps10/nvlevels100/2022-08-17T02:33:32.684.txt
+running tests for [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] counts of processors with 6 samples per test of 10 steps each
+partitioning 128 x 128 x 100 ocean among 2 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/128x128/graph.info.part.2
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+1×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2  mpi_time3  mpi_time4  mpi_time5  mpi_time6  max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64
+─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0    1.74752    1.74649    1.74641    1.74692     1.7466    1.74701   0.324569  0.0738012  0.0738049  0.0735816  0.0739736  0.0735316        0.0       0.0
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution128x128/procs1024/steps10/nvlevels100/2022-08-17T02:33:32.684.txt
+freeing splitcomm
+partitioning 128 x 128 x 100 ocean among 4 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/128x128/graph.info.part.4
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+2×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2  mpi_time3  mpi_time4  mpi_time5  mpi_time6  max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64
+─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0   1.74752    1.74649    1.74641    1.74692    1.7466     1.74701    0.324569  0.0738012  0.0738049  0.0735816  0.0739736  0.0735316        0.0       0.0
+   2 │     4.0   0.625755   0.594433   0.594478   0.593764   0.594047   0.594197   5.73962   0.22871    0.228533   0.229241   0.228888   0.228782       NaN       NaN
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution128x128/procs1024/steps10/nvlevels100/2022-08-17T02:33:32.684.txt
+freeing splitcomm
+partitioning 128 x 128 x 100 ocean among 8 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/128x128/graph.info.part.8
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+3×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2   mpi_time3   mpi_time4   mpi_time5  mpi_time6   max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64     Float64     Float64     Float64    Float64     Float64    Float64
+─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0   1.74752    1.74649    1.74641    1.74692    1.7466     1.74701    0.324569  0.0738012   0.0738049   0.0735816   0.0739736  0.0735316         0.0       0.0
+   2 │     4.0   0.625755   0.594433   0.594478   0.593764   0.594047   0.594197   5.73962   0.22871     0.228533    0.229241    0.228888   0.228782        NaN       NaN
+   3 │     8.0   0.409229   0.416917   0.416693   0.416777   0.41678    0.416889   5.74259   0.00138908  0.00137035  0.00133186  0.0012771  0.00127848      NaN       NaN
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution128x128/procs1024/steps10/nvlevels100/2022-08-17T02:33:32.684.txt
+freeing splitcomm
+partitioning 128 x 128 x 100 ocean among 16 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/128x128/graph.info.part.16
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+setting up exact sol
+calculating error
+4×15 DataFrame
+ Row │ procs    sim_time1  sim_time2  sim_time3  sim_time4  sim_time5  sim_time6  mpi_time1  mpi_time2   mpi_time3   mpi_time4   mpi_time5  mpi_time6   max_error  l2_error
+     │ Float64  Float64    Float64    Float64    Float64    Float64    Float64    Float64    Float64     Float64     Float64     Float64    Float64     Float64    Float64
+─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │     2.0   1.74752    1.74649    1.74641    1.74692    1.7466     1.74701    0.324569  0.0738012   0.0738049   0.0735816   0.0739736  0.0735316         0.0       0.0
+   2 │     4.0   0.625755   0.594433   0.594478   0.593764   0.594047   0.594197   5.73962   0.22871     0.228533    0.229241    0.228888   0.228782        NaN       NaN
+   3 │     8.0   0.409229   0.416917   0.416693   0.416777   0.41678    0.416889   5.74259   0.00138908  0.00137035  0.00133186  0.0012771  0.00127848      NaN       NaN
+   4 │    16.0   0.166447   0.171866   0.171787   0.171825   0.171774   0.171586   6.61273   0.0363154   0.036249    0.0364943   0.0364507  0.0366759       NaN       NaN
+saved at /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/output/kelvinwave/resolution128x128/procs1024/steps10/nvlevels100/2022-08-17T02:33:32.684.txt
+freeing splitcomm
+partitioning 128 x 128 x 100 ocean among 32 processes with /global/u2/r/rstrauss/repos/MPAS_Ocean_Julia/scaling_test/graphparts/128x128/graph.info.part.32
+halos: 1 wide
+subsetting ocean
+localizing to/from dicts
+now simulating for 10 steps, communicating every 1 steps
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 37703 RUNNING AT nid01134
+=   EXIT CODE: 9
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
+YOUR APPLICATION TERMINATED WITH THE EXIT STRING: Killed (signal 9)
+This typically refers to a problem with your application.
+Please see the FAQ page for debugging suggestions

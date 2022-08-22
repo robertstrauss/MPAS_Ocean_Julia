@@ -513,7 +513,7 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 # @timeit tmr "angleedge" begin
 				mpasOcean.angleEdge = my_mesh_file["angleEdge"][:][edges]
 				# if true
-				mpasOcean.angleEdge[:] = fix_angleEdge(mpasOcean,determineYCellAlongLatitude=true,
+				mpasOcean.angleEdge[:] = fix_angleEdge(mpasOcean,determineYCellAlongLatitude=false, #true
 										   printOutput=false,printRelevantMeshData=false)
 				# end
 

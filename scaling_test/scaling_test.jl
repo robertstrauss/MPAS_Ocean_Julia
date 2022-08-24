@@ -59,16 +59,13 @@ function globalToLocal(globalcells, mycells)
 end
 
 
-
-
-
 function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halowidth=5, ncycles=2, nvlevels=100)
 
 	meshpath = CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes"
 
 	# kelvin wave initial condition and exact solution functions
 	if worldrank == root
-		fullOcean = MPAS_Ocean(meshpath, "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels) 
+		fullOcean = MPAS_Ocean(meshpath, "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels)
 		lYedge = maximum(fullOcean.yEdge) - minimum(fullOcean.yEdge)
 		meanCoriolisParameterf = sum(fullOcean.fEdge) / length(fullOcean.fEdge)
 		meanFluidThicknessH = sum(fullOcean.bottomDepth)/length(fullOcean.bottomDepth)
@@ -111,7 +108,7 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 	end
 
 	function boundaryCondition!(mpasOcean, t)
-		@inbounds @fastmath for iEdge in 1:mpasOcean.nEdges
+		@fastmath for iEdge in 1:mpasOcean.nEdges
 			if mpasOcean.boundaryEdge[iEdge] == 1.0
 				mpasOcean.normalVelocityCurrent[iEdge] = kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)
 			end
@@ -120,7 +117,7 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 
 
 #	timout = TimerOutput()
-	
+
 	rootprint("running tests for $proccounts counts of processors with $nsamples samples per test of $(halowidth*ncycles) steps each")
 	rootprint("halos: $halowidth wide")
 
@@ -144,8 +141,8 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 			rootprint("partitioning $nCellsX x $nCellsX x $(nvlevels) ocean among $nprocs processes with $(partitionfile)")
 			partitions = dropdims(readdlm(partitionfile), dims=2)
 			mycells = findall(proc -> proc == worldrank-1, partitions)
-			
-#			@timeit timout "grow halo" 
+
+#			@timeit timout "grow halo"
 			(haloCells = grow_halo(cellsOnCell, mycells, halowidth))
 
 			cellsFromChunk = Dict{Int64, Array}()
@@ -157,7 +154,7 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 					cellsFromChunk[chunk] = [iCell]
 				end
 			end
-			
+
 			# tell neighbors which cells they should send me
 			cellsToChunk = Dict{Int64, Array}()
 			tag = 2
@@ -177,17 +174,18 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 			MPI.Waitall!(vcat(sendreqs, recvreqs))
 
 			rootprint("subsetting ocean")
-			
+
 #			@timeit timout "subset" begin
 				myCells     = union(mycells, haloCells)
+				rootprint("cell count $(length(myCells))")
 				mpasOcean = MPAS_Ocean(meshpath, "culled_mesh_$nCellsX.nc", "mesh_$nCellsX.nc", periodicity="NonPeriodic_x", nvlevels=nvlevels, cells=myCells)
+				mpasOcean.dt = dt #1e-2 * minimum(mpasOcean.dcEdge) / c
 				rootprint("dt: $(mpasOcean.dt)")
-				mpasOcean.dt = dt #1e-2 * minimum(mpasOcean.dcEdge) / c 
-				rootprint("dt: $(mpasOcean.dt)")
+
+				# rootprint("edgesoncell $(mpasOcean.edgesOnCell[1:10]")
 #			end
 				myEdges = collect(Set(mpasOcean.edgesOnCell[:,:]))
-			
-			rootprint("localizing to/from dicts")
+
 			cellsToMyChunk = Dict{Int64, Array}()
 			for (chunk, cells) in cellsToChunk
 				localcells = globalToLocal(cells, myCells)
@@ -221,8 +219,7 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 				end
 			end
 
-
-			rootprint("now simulating for $(halowidth*ncycles) steps, communicating every $halowidth steps")
+			rootprint("now simulating for $(halowidth*ncycles*nsamples) steps, communicating every $halowidth steps, timing $(nsamples) samples of $(halowidth*ncycles) steps")
 
 			sampletimessim = zeros(nsamples)
 			sampletimesmpi = zeros(nsamples)
@@ -231,27 +228,15 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 			for jsample in 1:nsamples
 				for f in 1:ncycles
 					# simulate
-					println("$(worldrank)) max abs ssh before: $(maximum(abs.(mpasOcean.sshCurrent))), finite? $(all(isfinite, mpasOcean.sshCurrent))")
 					sampletimessim[jsample] += @elapsed begin
 						for h in 1:halowidth
 							calculate_normal_velocity_tendency!(mpasOcean)
-							update_normal_velocity_by_tendency!(mpasOcean)
-							# rootprint("max abs ssh after nv: $(maximum(abs.(mpasOcean.sshCurrent)))")
 
 							boundaryCondition!(mpasOcean, exacttime)
-							# rootprint("max abs ssh after boundary: $(maximum(abs.(mpasOcean.sshCurrent)))")
 
 							calculate_ssh_tendency!(mpasOcean)
 							update_ssh_by_tendency!(mpasOcean)
-							# rootprint("max abs ssh after ssh: $(maximum(abs.(mpasOcean.sshCurrent)))")
 						end
-						if !(sum(mpasOcean.sshCurrent) < 1e99) || !(sum(mpasOcean.normalVelocityCurrent) < 1e99)
-							iProb = findall(isnan, mpasOcean.sshCurrent)
-							println("($worldrank) xcell of problematic values: $(mpasOcean.xCell[iProb])")
-							println("($worldrank) celloncell of problematic values: $(size(mpasOcean.cellsOnCell[:,iProb]))")
-							println("($worldrank) boundarycell of problematic values: $(mpasOcean.boundaryCell[iProb])")
-						end
-						println("($(worldrank)) max abs ssh after: $(maximum(abs.(mpasOcean.sshCurrent))), finite? $(all(isfinite, mpasOcean.sshCurrent))")
 						exacttime += halowidth*mpasOcean.dt
 					end
 					sampletimesmpi[jsample] += @elapsed begin
@@ -259,26 +244,6 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 					end
 				end
 			end
-			#=
-			bench = @benchmark begin
-					# simulate
-					for f in 1:$ncycles
-						for h in 1:$halowidth
-							$calculate_normal_velocity_tendency!($mpasOcean)
-							$update_normal_velocity_by_tendency!($mpasOcean)
-
-							$boundaryCondition!($mpasOcean, exacttime)
-
-							$calculate_ssh_tendency!($mpasOcean)
-							$update_ssh_by_tendency!($mpasOcean)
-						end
-						exacttime += $halowidth*$mpasOcean.dt
-
-						update_halos!($splitcomm, $worldrank, $mpasOcean, $cellsFromChunk, $cellsToChunk, $myCells, $myEdges, $myVertices)
-					end
-				end samples=nsamples setup=(exacttime=0; $kelvinWaveExactSolution!($mpasOcean, exacttime))
-			sampletimes = bench.times=#
-
 
 			rootprint("generating exact sol")
 			exactssh = zero(mpasOcean.sshCurrent)

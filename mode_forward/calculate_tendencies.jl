@@ -6,7 +6,7 @@ include("../mode_init/MPAS_Ocean.jl")
 ### CPU tendency calculation
 
 function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
-    @inbounds @fastmath for iEdge::Int64 in 1:mpasOcean.nEdges # Threads.@threads
+    @fastmath for iEdge::Int64 in 1:mpasOcean.nEdges # Threads.@threads
 		mpasOcean.normalVelocityTendency[iEdge,:] .= 0.0
 
         if mpasOcean.boundaryEdge[iEdge] == 0
@@ -44,13 +44,13 @@ function update_normal_velocity_by_tendency!(mpasOcean::MPAS_Ocean)
 end
 
 function update_normal_velocity_by_tendency_loop!(mpasOcean::MPAS_Ocean)
-	@inbounds @fastmath for iEdge::Int64 in 1:mpasOcean.nEdges
+	@fastmath for iEdge::Int64 in 1:mpasOcean.nEdges
 		mpasOcean.normalVelocityCurrent[iEdge] += mpasOcean.dt * mpasOcean.normalVelocityTendency[iEdge]
 	end
 end
 
 function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
-    @inbounds @fastmath for iCell in 1:mpasOcean.nCells # Threads.@threads
+    @fastmath for iCell in 1:mpasOcean.nCells # Threads.@threads
     	mpasOcean.sshTendency[iCell] = 0.0
         # sum flux through each edge of cell
         netflux = 0.0
@@ -65,8 +65,7 @@ function calculate_ssh_tendency!(mpasOcean::MPAS_Ocean)
             end
 
             flux = ( mpasOcean.layerThicknessEdge[edgeID,1] + sshedge ) * mpasOcean.normalVelocityCurrent[edgeID,1] * mpasOcean.dvEdge[edgeID]
-            netflux += flux * mpasOcean.edgeSignOnCell[iCell,i]
-
+			netflux += flux * mpasOcean.edgeSignOnCell[iCell,i]
             # lower layers
             for k in 2:mpasOcean.maxLevelEdgeTop[edgeID]+1
                 flux = (mpasOcean.layerThicknessEdge[edgeID,k]) * mpasOcean.normalVelocityCurrent[edgeID,k] * mpasOcean.dvEdge[edgeID]

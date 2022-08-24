@@ -32,9 +32,6 @@ function update_halos!(comm, mpasOcean, cellsFromMyChunk, cellsToMyChunk, edgesF
 
 	for (dstchunk, localcells) in cellsToMyChunk
 		reqssh = MPI.Isend(mpasOcean.sshCurrent[localcells], dstchunk-1, 0, comm)
-		if !(sum(mpasOcean.sshCurrent[localcells]) < 1e9)
-			println("SENDING PROBLEMATIC VALUES")
-		end
 		append!(sendreqs, [reqssh])
 	end
 	for (dstchunk, localedges) in edgesToMyChunk
@@ -44,18 +41,12 @@ function update_halos!(comm, mpasOcean, cellsFromMyChunk, cellsToMyChunk, edgesF
 
 	### copy the recieved data into the ocean's halo
 	MPI.Waitall!(vcat(recreqs, sendreqs))
-	
+
 	# copy data from buffers into ocean object
 	for (i, (srcchunk, localcells)) in enumerate(cellsFromMyChunk)
 		mpasOcean.sshCurrent[localcells] = halobufferssh[i]
-		if !(sum(halobufferssh[i]) < 1e9)
-			println("ssh buffer $i $(halobufferssh[i]) from $srcchunk")
-		end
 	end
 	for (i, (srcchunk, localedges)) in enumerate(edgesFromMyChunk)
 		mpasOcean.normalVelocityCurrent[localedges] = halobuffernv[i]
-		if !(sum(halobuffernv[i]) < 1e9)
-			println("nv buffer $i $(halobuffernv[i]) from $srcchunk")
-		end
 	end
 end

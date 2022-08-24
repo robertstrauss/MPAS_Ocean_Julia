@@ -351,7 +351,6 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 
 		edges = collect(Set(mpasOcean.edgesOnCell[:,cells]))
 		vertices = collect(Set(mpasOcean.verticesOnCell[:,cells]))
-
 	# end
 	# @timeit tmr "tolocal" begin
 
@@ -378,17 +377,18 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 		# 	return sort(mapped, dims=2, rev=true) # move 0s to the end of each row, so its like a ragged array
 		# end
 
-		# mycells = collect(cells)
+
 	    globtolocalcell = Dict{Int64,Int64}()
 	    for (iLocal, iGlobal) in enumerate(cells)
 		    globtolocalcell[iGlobal] = iLocal
 	    end
-	    # myedges = collect(edges)
+
 	    globtolocaledge = Dict{Int64,Int64}()
 	    for (iLocal, iGlobal) in enumerate(edges)
+			# println("enumerate $iLocal $iGlobal")
 		    globtolocaledge[iGlobal] = iLocal
 	    end
-	    # myvertices = collect(vertices)
+
 	    globtolocalvertex = Dict{Int64,Int64}()
 	    for (iLocal, iGlobal) in enumerate(vertices)
 		    globtolocalvertex[iGlobal] = iLocal
@@ -434,11 +434,15 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 
 # end
 # @timeit tmr "mut" begin
-
+		# println("glob to local edge $globtolocaledge")
+		# println("edges on cell pre $(mpasOcean.edgesOnCell[1:20])")
 
 		globalToLocal!(mpasOcean.cellsOnCell, globtolocalcell)# = my_mesh_file["cellsOnCell"][:][:,cells]#, globtolocalcell)
 		globalToLocal!(mpasOcean.edgesOnCell, globtolocaledge)# = my_mesh_file["edgesOnCell"][:][:,cells]#, globtolocaledge)
 		globalToLocal!(mpasOcean.verticesOnCell, globtolocalvertex)# = my_mesh_file["verticesOnCell"][:][:,cells]#, globtolocalvertex)
+
+		# println("edges on cell post $(mpasOcean.edgesOnCell[1:20])")
+
 
 		globalToLocal!(mpasOcean.cellsOnEdge, globtolocalcell)# = my_mesh_file["cellsOnEdge"][:][:,edges]#, globtolocalcell)
 		globalToLocal!(mpasOcean.edgesOnEdge, globtolocaledge)# = my_mesh_file["edgesOnEdge"][:][:,edges], globtolocaledge)
@@ -461,10 +465,10 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 		mpasOcean.lonCell = base_mesh_file["lonCell"][:][cells]
 		mpasOcean.xCell = base_mesh_file["xCell"][:][cells]
 		mpasOcean.yCell = base_mesh_file["yCell"][:][cells]
-
 		mpasOcean.areaCell = my_mesh_file["areaCell"][:][cells]
-		mpasOcean.dvEdge = my_mesh_file["dvEdge"][:][cells]
-		mpasOcean.dcEdge = my_mesh_file["dcEdge"][:][cells]
+
+		mpasOcean.dvEdge = my_mesh_file["dvEdge"][:][edges]
+		mpasOcean.dcEdge = my_mesh_file["dcEdge"][:][edges]
 
 		# mpasOcean.kiteAreasOnVertex = my_mesh_file["kiteAreasOnVertex"][:][:,vertices]
 		# mpasOcean.areaTriangle = my_mesh_file["areaTriangle"][:][:,vertices]

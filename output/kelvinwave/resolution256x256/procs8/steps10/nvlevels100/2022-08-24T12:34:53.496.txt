@@ -1,0 +1,2 @@
+procs,sim_time1,sim_time2,sim_time3,mpi_time1,mpi_time2,mpi_time3,max_error,l2_error
+2.0,9.670620149,9.994755011,9.697934946,2.2438732980000005,0.0012006410000000001,0.422163764,NaN,NaN

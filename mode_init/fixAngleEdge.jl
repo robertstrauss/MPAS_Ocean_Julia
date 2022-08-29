@@ -65,7 +65,7 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
 
 
         dcEdge = round(maximum(mpasOcean.dcEdge))
-        DeltaXMax = maximum(mpasOcean.dcEdge)
+        DeltaXMax = maximum(mpasOcean.dcEdge) * 1.1
         xCell::Array{Float64,1} = mpasOcean.xCell
         yCell::Array{Float64,1} = mpasOcean.yCell
         # println("yCell ", sizeof(yCell))
@@ -74,20 +74,22 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         # with equal number of cells in each direction. However, for a problem with non-periodic boundary conditions,
         # it will work for the culled mesh && the final mesh, but not the base mesh.
 
-        if determineYCellAlongLatitude
-            nY = Int64(round(sqrt(nCells)))
-            yCellAlongLatitude = zeros(Float32, nY)
-            iYAlongLatitude = 0+1
-            for iY in range(0+1,nCells,step=1)
-                if mod(Float64(iY),Float64(nY)) == 0.0
-                    yCellAlongLatitude[iYAlongLatitude] = yCell[iY]
-                    iYAlongLatitude += 1
-                end
-            end
-            DeltaYMax = maximum(diff(yCellAlongLatitude))
-        else
-            DeltaYMax = DeltaXMax*sqrt3over2
-        end
+        # if determineYCellAlongLatitude
+        #     nY = Int64(round(sqrt(nCells)))
+        #     yCellAlongLatitude = zeros(Float32, nY)
+        #     iYAlongLatitude = 0+1
+        #     for iY in range(0+1,nCells,step=1)
+        #         if mod(Float64(iY),Float64(nY)) == 0.0
+        #             yCellAlongLatitude[iYAlongLatitude] = yCell[iY]
+        #             iYAlongLatitude += 1
+        #         end
+        #     end
+        #     # println("final iYAL $iYAlongLatitude, ny (size ycal) $(nY)")
+        #     DeltaYMax = maximum(diff(yCellAlongLatitude))
+        #     # println("DeltaYMax $DeltaYMax, DeltaXMax $DeltaXMax, approx $(DeltaXMax*sqrt3over2)")
+        # else
+            DeltaYMax = DeltaXMax*sqrt3over2*2#+100
+        # end
         xEdge = mpasOcean.xEdge
         yEdge = mpasOcean.yEdge
 
@@ -109,6 +111,9 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         thisYEdge = yEdge[iEdge]
         cell1 = cellsOnEdge[0+1,iEdge]
         cell2 = cellsOnEdge[1+1,iEdge]
+        if cell1 == 0
+            println("cell1 0 $iEdge $(mpasOcean.cellsOnEdge[:,iEdge-1:iEdge+1])")
+        end
         xCell1 = xCell[cell1]
         yCell1 = yCell[cell1]
 

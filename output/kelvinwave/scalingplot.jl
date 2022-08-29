@@ -4,10 +4,11 @@ CODE_ROOT = pwd()
 
 include(CODE_ROOT * "/visualization.jl")
 
-nCellsX = 256
+nCellsX = 512
 fname = CODE_ROOT * "/output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/procs1024/steps10/nvlevels100/"
-fname *= "2022-08-22T14:21:08.243.txt"
-# fname *= "2022-08-22T15:44:41.728.txt"
+fname = filter(x->x[end-3:end] == ".txt", readdir(fname, join=true))[end]
+# fname *= "2022-08-24T16:27:20.125.txt"
+# fname *= "2022-08-24T16:40:29.640.txt"
 # "/output/kelvinwave/resolution$(nCellsX)x$(nCellsX)/steps10/2022-06-01T20:17:04.919.txt"
 df = DataFrame(CSV.File(fname))
 
@@ -25,19 +26,25 @@ fortranfname = readdir(CODE_ROOT * "/output/kelvinwave/fortranperformance/resolu
 fortrantiming = readdlm(fortranfname, skipstart=7)
 # julia is using forward-backward, fortran is using RK4, so to make comparison fair we divide fortran times by 4 since its doing about 4x as much work
 fortranmeans = fortrantiming[:,end-1] ./ 4
-fortransypd = fortrantiming[:,end] .* 4
+# fortransypd = fortrantiming[:,end] .* 4
 fortranprocs = fortrantiming[:,1]
-factor = ( fortransypd .* fortranmeans )[1]
+# factor = ( fortransypd .* fortranmeans )[1]
 
 
 
-juliasypd = factor ./ juliameans
-perfectjuliasypd = factor ./ perfectjulia
+# juliasypd = factor ./ juliameans
+# perfectjuliasypd = factor ./ perfectjulia
 
-fig, ax = plt.subplots()
-ax.loglog(df.procs, juliasypd, label="julia total")
-ax.loglog(df.procs, perfectjuliasypd, label="perfect scaling", linestyle=":", color="grey")
-ax.loglog(fortranprocs, fortransypd, label="fortran")
+linewidth = 1
+linestyle = "-"
+markersize = 10
+tickfontsize = 15
+labelfontsize = 20
+
+fig, ax = plt.subplots(figsize=(9,9))
+ax.loglog(df.procs, juliameans, label="julia", linewidth=linewidth,linestyle="-",color="red",marker="s",markersize=markersize)
+ax.loglog(df.procs, perfectjulia, label="perfect scaling", linestyle=":", color="grey")
+ax.loglog(fortranprocs, fortranmeans, label="fortran", linewidth=linewidth,linestyle="--",color="blue",marker="D",markersize=markersize)
 
 # ax.loglog(df.procs, Array(df[:,runs], label="julia")
 # ax.loglog(df.procs, juliasimmean, label="julia sim only")
@@ -45,15 +52,20 @@ ax.loglog(fortranprocs, fortransypd, label="fortran")
 
 
 ax.set_xticks(df.procs)
+ax.tick_params(axis="x", labelsize=tickfontsize)
+ax.tick_params(axis="y", labelsize=tickfontsize)
 # ax.set_yticks([minimum(hcat(juliameans,fortranmeans)),
 #         sum(hcat(juliameans,fortranmeans))/(length(juliameans)+length(fortranmeans)),
 #         maximum(hcat(juliameans,fortranmeans))])
 ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
 ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-ax.set_xlabel("number of processors")
-ax.set_ylabel("simulated years per day")
-ax.set_title("$(nCellsX)x$(nCellsX) mesh coastal kelvin wave on cori-haswell")
-ax.legend()
+ax.set_xlabel("Number of processors", fontsize=labelfontsize)
+ax.set_ylabel("Wall clock time elapsed during computation (s)", fontsize=labelfontsize)
+ax.set_title("Scaling of Coastal Kelvin Wave Simulation \non Cori-Haswell with $(nCellsX)x$(nCellsX) Hexagonal Mesh", fontsize=21, fontweight="bold")
+ax.legend(loc="lower right")
+
+ax.grid(which="both")
+plt.tight_layout()
 
 display(fig)
 

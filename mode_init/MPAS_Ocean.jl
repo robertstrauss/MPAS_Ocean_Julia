@@ -10,6 +10,25 @@ include("fixAngleEdge.jl")
 # const I = Int64
 # const F = Float64
 
+function dimsortperm(A::AbstractMatrix; dims::Integer, rev::Bool = false)
+    P = mapslices(x -> sortperm(x; rev = rev), A, dims = dims)
+    if dims == 1
+        for j = 1:size(P, 2)
+            offset = (j - 1) * size(P, 1)
+            for i = 1:size(P, 1)
+                P[i, j] += offset
+            end
+        end
+    else # if dims == 2
+        for j = 1:size(P, 2)
+            for i = 1:size(P, 1)
+                P[i, j] = (P[i, j] - 1) * size(P, 1) + i
+            end
+        end
+    end
+    return P
+end
+
 mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 
 #     boundaryConditions::Array{BoundaryCondition}
@@ -38,7 +57,7 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
     cellsOnCell::Array{Int64,2}  # indices of neighbor cells (nCells, nEdgesOnCell[Int64])
     edgesOnCell::Array{Int64,2}  # indices of edges of cell (nCells, nEdgesOnCell[Int64])
     verticesOnCell::Array{Int64,2}  # indices of vertices of cell (nCells, nEdgesOnCell[Int64])
-    # kiteIndexOnCell::Array{Int64,2}  # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[Int64])
+    kiteIndexOnCell::Array{Int64,2}  # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[Int64])
     nEdgesOnCell::Array{Int64,1}  # number of edges a cell has (cell-centered)
     edgeSignOnCell::Array{Int8,2} # orientation of edge relative to cell (nCells, nEdgesOnCell[Int64])
     latCell::Array{Float64,1}   #where Float64 <: AbstractFloat # latitude of cell (cell-centered)
@@ -407,7 +426,12 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 					globals[i] = 0
 				end
 			end
-			sort!(globals, dims=1, rev=true)
+			# sort!(globals, dims=1, rev=true)
+			ordermap = dimsortperm(globals, dims=1, rev=true) # move "0" values to the end of each row, like a ragged array, like the code expects
+			globals = globals[ordermap]
+			# # println("ordermap $ordermap")
+
+			# return ordermap # its now necesary to remember the way we reordered the indexes, and reorder related arrays the same way
 		end
 
 		mpasOcean.nCells = nCells = length(cells)
@@ -437,8 +461,8 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 		# println("glob to local edge $globtolocaledge")
 		# println("edges on cell pre $(mpasOcean.edgesOnCell[1:20])")
 
-		globalToLocal!(mpasOcean.cellsOnCell, globtolocalcell)# = my_mesh_file["cellsOnCell"][:][:,cells]#, globtolocalcell)
 		globalToLocal!(mpasOcean.edgesOnCell, globtolocaledge)# = my_mesh_file["edgesOnCell"][:][:,cells]#, globtolocaledge)
+		globalToLocal!(mpasOcean.cellsOnCell, globtolocalcell)# = my_mesh_file["cellsOnCell"][:][:,cells]#, globtolocalcell)
 		globalToLocal!(mpasOcean.verticesOnCell, globtolocalvertex)# = my_mesh_file["verticesOnCell"][:][:,cells]#, globtolocalvertex)
 
 		# println("edges on cell post $(mpasOcean.edgesOnCell[1:20])")
@@ -470,8 +494,8 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 		mpasOcean.dvEdge = my_mesh_file["dvEdge"][:][edges]
 		mpasOcean.dcEdge = my_mesh_file["dcEdge"][:][edges]
 
-		# mpasOcean.kiteAreasOnVertex = my_mesh_file["kiteAreasOnVertex"][:][:,vertices]
-		# mpasOcean.areaTriangle = my_mesh_file["areaTriangle"][:][:,vertices]
+		mpasOcean.kiteAreasOnVertex = my_mesh_file["kiteAreasOnVertex"][:][:,vertices]
+		mpasOcean.areaTriangle = my_mesh_file["areaTriangle"][:][vertices]
 
 
 		mpasOcean.latVertex = base_mesh_file["latVertex"][:][vertices]
@@ -538,12 +562,12 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 		DetermineCoriolisParameterAndBottomDepth!(mpasOcean)
 # end
 # @timeit tmr "max edge z" begin
-		# mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells,maxEdges))
+		mpasOcean.kiteIndexOnCell = zeros(Int64, (nCells,maxEdges))
 		mpasOcean.edgeSignOnVertex = zeros(Int8, (nVertices,maxEdges))
 
 		# mpasOcean.weightsOnEdge = zeros(Float64, (nEdges,maxEdges))
 		# NCDatasets.load!(NCDatasets.variable(my_mesh_file,"weightsOnEdge"),mpasOcean.weightsOnEdge,:,:)[:,edges]
-		mpasOcean.weightsOnEdge = my_mesh_file["weightsOnEdge"][:][:,edges]
+		mpasOcean.weightsOnEdge = my_mesh_file["weightsOnEdge"][:][:,edges]#[eoeOrdermap]
 
 		mpasOcean.edgeSignOnCell = zeros(Int8, (nCells,maxEdges))
 # end
@@ -613,53 +637,53 @@ end
 
 =#
 
-
-function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
-    if float_type=="default"
-        float_type = typeof(mpasOcean.gravity)
-    end
-
-    mainArrayNames = [
-        :sshTendency,
-        :sshCurrent,
-        :nEdgesOnCell,
-        :edgesOnCell,
-        :cellsOnCell,
-        :bottomDepth,
-        :areaCell,
-        :edgeSignOnCell,
-    # ]
-
-    # mainEdgeArrayNames = [
-        :normalVelocityTendency,
-        :normalVelocityCurrent,
-        :cellsOnEdge,
-        :nEdgesOnEdge,
-        :edgesOnEdge,
-        :weightsOnEdge,
-        :fEdge,
-        :dcEdge,
-        :dvEdge,
-        :boundaryEdge,
-        :yEdge,
-        :xEdge,
-        :angleEdge
-    ]
-
-    for (iField, field) in enumerate(mainArrayNames)#fieldnames(typeof(mpasOcean)))
-        # if typeof(mpasOcean).types[iField] == Array
-        if eltype(getfield(mpasOcean, field)) <: AbstractFloat
-            elT = float_type
-        else
-            elT = eltype(getfield(mpasOcean, field))
-        end
-        setfield!(mpasOcean, field, convert(array_type{elT}, getfield(mpasOcean, field)))
-        # end
-    end
-
-
-
-end
+#
+# function moveArrays!(mpasOcean::MPAS_Ocean, array_type, float_type="default")
+#     if float_type=="default"
+#         float_type = typeof(mpasOcean.gravity)
+#     end
+#
+#     mainArrayNames = [
+#         :sshTendency,
+#         :sshCurrent,
+#         :nEdgesOnCell,
+#         :edgesOnCell,
+#         :cellsOnCell,
+#         :bottomDepth,
+#         :areaCell,
+#         :edgeSignOnCell,
+#     # ]
+#
+#     # mainEdgeArrayNames = [
+#         :normalVelocityTendency,
+#         :normalVelocityCurrent,
+#         :cellsOnEdge,
+#         :nEdgesOnEdge,
+#         :edgesOnEdge,
+#         :weightsOnEdge,
+#         :fEdge,
+#         :dcEdge,
+#         :dvEdge,
+#         :boundaryEdge,
+#         :yEdge,
+#         :xEdge,
+#         :angleEdge
+#     ]
+#
+#     for (iField, field) in enumerate(mainArrayNames)#fieldnames(typeof(mpasOcean)))
+#         # if typeof(mpasOcean).types[iField] == Array
+#         if eltype(getfield(mpasOcean, field)) <: AbstractFloat
+#             elT = float_type
+#         else
+#             elT = eltype(getfield(mpasOcean, field))
+#         end
+#         setfield!(mpasOcean, field, convert(array_type{elT}, getfield(mpasOcean, field)))
+#         # end
+#     end
+#
+#
+#
+# end
 
 
 
@@ -704,33 +728,33 @@ end
 
 function ocn_init_routines_setup_sign_and_index_fields!(mpasOcean)
     for iCell in range(1,mpasOcean.nCells,step=1)
-        for Int64 in range(1,mpasOcean.nEdgesOnCell[iCell],step=1)
-            iEdge = mpasOcean.edgesOnCell[Int64,iCell]
-            iVertex = mpasOcean.verticesOnCell[Int64,iCell]
+        for j in range(1,mpasOcean.nEdgesOnCell[iCell],step=1)
+            iEdge = mpasOcean.edgesOnCell[j,iCell]
+            iVertex = mpasOcean.verticesOnCell[j,iCell]
             # Vector points from cell 1 to cell 2
             if mpasOcean.cellsOnEdge[1,iEdge] == iCell
-                mpasOcean.edgeSignOnCell[iCell,Int64] = -1
+                mpasOcean.edgeSignOnCell[iCell,j] = -1
             else
-                mpasOcean.edgeSignOnCell[iCell,Int64] = 1
+                mpasOcean.edgeSignOnCell[iCell,j] = 1
             end
-            # for j in range(1,mpasOcean.vertexDegree,step=1)
-            #     if mpasOcean.cellsOnVertex[j,iVertex] == iCell
-            #         mpasOcean.kiteIndexOnCell[iCell,Int64] = j
-            #     end
-            # end
+            for jj in range(1,mpasOcean.vertexDegree,step=1)
+                if mpasOcean.cellsOnVertex[jj,iVertex] == iCell
+                    mpasOcean.kiteIndexOnCell[iCell,j] = jj
+                end
+            end
         end
     end
 
 
     for iVertex in range(1,mpasOcean.nVertices,step=1)
-        for Int64 in range(1,mpasOcean.vertexDegree,step=1)
-            iEdge = mpasOcean.edgesOnVertex[Int64,iVertex]
+        for j in range(1,mpasOcean.vertexDegree,step=1)
+            iEdge = mpasOcean.edgesOnVertex[j,iVertex]
             if iEdge != 0
                 # Vector points from vertex 1 to vertex 2
                 if mpasOcean.verticesOnEdge[1,iEdge] == iVertex
-                    mpasOcean.edgeSignOnVertex[iVertex,Int64] = -1
+                    mpasOcean.edgeSignOnVertex[iVertex,j] = -1
                 else
-                    mpasOcean.edgeSignOnVertex[iVertex,Int64] = 1
+                    mpasOcean.edgeSignOnVertex[iVertex,j] = 1
                 end
             end
         end
@@ -783,11 +807,11 @@ function ocn_init_routines_compute_max_level!(mpasOcean)
         end
     end
 
-    determine_boundaryEdge_Generalized_Method = true
-
-    if determine_boundaryEdge_Generalized_Method
-        mpasOcean.boundaryEdge[:,:] .= 1
-    end
+    # determine_boundaryEdge_Generalized_Method = true
+	#
+    # if determine_boundaryEdge_Generalized_Method
+    #     mpasOcean.boundaryEdge[:,:] .= 1
+    # end
     mpasOcean.edgeMask[:,:] .= 0
 
     for iEdge in 1:mpasOcean.nEdges
@@ -835,17 +859,21 @@ function ocn_init_routines_compute_max_level!(mpasOcean)
         end
     end
 
-
+    mpasOcean.nNonPeriodicBoundaryEdges = 0.0
     for iEdge in 1:mpasOcean.nEdges
         if mpasOcean.boundaryEdge[iEdge, 1] == 1.0
             mpasOcean.nNonPeriodicBoundaryEdges += 1
         end
     end
+
+	mpasOcean.nNonPeriodicBoundaryVertices = 0.0
     for iVertex in 1:mpasOcean.nVertices
         if mpasOcean.boundaryVertex[iVertex, 1] == 1.0
             mpasOcean.nNonPeriodicBoundaryVertices += 1
         end
     end
+
+	mpasOcean.nNonPeriodicBoundaryCells = 0.0
     for iCell in 1:mpasOcean.nCells
         if mpasOcean.boundaryCell[iCell, 1] == 1.0
             mpasOcean.nNonPeriodicBoundaryCells += 1

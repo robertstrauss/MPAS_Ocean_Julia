@@ -69,7 +69,7 @@ function strongscalingplot(nCellsX)
     ax.set_xlabel("Number of processors", fontsize=labelfontsize)
     ax.set_ylabel("Wall clock time elapsed during computation (s)", fontsize=labelfontsize)
     ax.set_title("Scaling of Coastal Kelvin Wave Simulation \non Cori-Haswell with $(nCellsX)x$(nCellsX) Hexagonal Mesh", fontsize=21, fontweight="bold")
-    ax.legend(loc="lower right")
+    ax.legend(loc="upper right", fontsize=labelfontsize)
 
     ax.grid(which="both")
     plt.tight_layout()
@@ -81,7 +81,13 @@ function strongscalingplot(nCellsX)
 end
 
 fig, ax, fname = strongscalingplot(512)
+fig.savefig("$(fname)_scaling512x.png")
 
+fig, ax, fname = strongscalingplot(256)
+fig.savefig("$(fname)_scaling256x.png")
+
+fig, ax, fname = strongscalingplot(128)
+fig.savefig("$(fname)_scaling128x.png")
 
 
 function weakscalingplot()

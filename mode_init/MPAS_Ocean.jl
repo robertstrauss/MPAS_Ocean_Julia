@@ -1,14 +1,8 @@
 import NCDatasets
-import CUDA
 using SparseArrays
-# import KernelAbstractions
 
-# include("Namelist.jl")
 include("fixAngleEdge.jl")
 
-
-# const I = Int64
-# const F = Float64
 
 function dimsortperm(A::AbstractMatrix; dims::Integer, rev::Bool = false)
     P = mapslices(x -> sortperm(x; rev = rev), A, dims = dims)
@@ -29,9 +23,7 @@ function dimsortperm(A::AbstractMatrix; dims::Integer, rev::Bool = false)
     return P
 end
 
-mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
-
-#     boundaryConditions::Array{BoundaryCondition}
+mutable struct MPAS_Ocean
 
     # prognostic variables
     sshCurrent::Array{Float64,1}   #where Float64 <: AbstractFloat # sea surface height (cell-centered)
@@ -200,7 +192,7 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 	    end
 
 
-		function globalToLocal!(globals, globmap)
+		function globalToLocal!(globals, globmap, sort=false)
 			for i in 1:length(globals)
 				if globals[i] in keys(globmap)
 					globals[i] = globmap[globals[i]]
@@ -208,12 +200,12 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 					globals[i] = 0
 				end
 			end
-			# sort!(globals, dims=1, rev=true)
-			ordermap = dimsortperm(globals, dims=1, rev=true) # move "0" values to the end of each row, like a ragged array, like the code expects
-			globals[:] = globals[ordermap]
-			# # println("ordermap $ordermap")
 
+			if sort
+				ordermap = dimsortperm(globals, dims=1, rev=true) # move "0" values to the end of each row, like a ragged array, like the code expects
+				globals[:] = globals[ordermap]
 			return ordermap # its now necesary to remember the way we reordered the indexes, and reorder related arrays the same way
+			end
 		end
 
 		mpasOcean.nCells = nCells = length(cells)
@@ -249,12 +241,12 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 
 		# println("edges on cell post $(mpasOcean.edgesOnCell[1:20])")
 
-		globalToLocal!(mpasOcean.cellsOnEdge, globtolocalcell)# = my_mesh_file["cellsOnEdge"][:][:,edges]#, globtolocalcell)
-		ordermapEOE = globalToLocal!(mpasOcean.edgesOnEdge, globtolocaledge)# = my_mesh_file["edgesOnEdge"][:][:,edges], globtolocaledge)
+		globalToLocal!(mpasOcean.cellsOnEdge, globtolocalcell, true)# = my_mesh_file["cellsOnEdge"][:][:,edges]#, globtolocalcell)
+		ordermapEOE = globalToLocal!(mpasOcean.edgesOnEdge, globtolocaledge, true)# = my_mesh_file["edgesOnEdge"][:][:,edges], globtolocaledge)
 		globalToLocal!(mpasOcean.verticesOnEdge, globtolocalvertex)# = globalToLocal(my_mesh_file["verticesOnEdge"][:][:,edges], globtolocalvertex)
 
-		ordermapCOV = globalToLocal!(mpasOcean.cellsOnVertex, globtolocalcell)# = globalToLocal(my_mesh_file["cellsOnVertex"][:][:,vertices], globtolocalcell)
-		globalToLocal!(mpasOcean.edgesOnVertex, globtolocaledge)#
+		ordermapCOV = globalToLocal!(mpasOcean.cellsOnVertex, globtolocalcell, true)# = globalToLocal(my_mesh_file["cellsOnVertex"][:][:,vertices], globtolocalcell)
+		globalToLocal!(mpasOcean.edgesOnVertex, globtolocaledge, true)#
 # end
 # @timeit tmr "count" begin
 		mpasOcean.nEdgesOnCell = dropdims(sum(map(val -> Int64(val != 0), mpasOcean.edgesOnCell), dims=1), dims=1) #base_mesh_file["nEdgesOnCell"][:][cells]
@@ -324,7 +316,7 @@ mutable struct MPAS_Ocean#{Float64<:AbstractFloat}
 # @timeit tmr "angleedge" begin
 				mpasOcean.angleEdge = my_mesh_file["angleEdge"][:][edges]
 				# if true
-				mpasOcean.angleEdge[:] = fix_angleEdge(mpasOcean,determineYCellAlongLatitude=false, #true
+				mpasOcean.angleEdge[:] = fix_angleEdge(mpasOcean,determineYCellAlongLatitude=true, #true
 										   printOutput=false,printRelevantMeshData=false)
 				# end
 

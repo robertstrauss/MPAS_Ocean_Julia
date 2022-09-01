@@ -47,9 +47,6 @@ end
 
 
 
-
-
-
 function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=false,
                   printRelevantMeshData=false)
 
@@ -65,7 +62,7 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
 
 
         dcEdge = round(maximum(mpasOcean.dcEdge))
-        DeltaXMax = maximum(mpasOcean.dcEdge) * 1.1
+        DeltaXMax = maximum(mpasOcean.dcEdge)
         xCell::Array{Float64,1} = mpasOcean.xCell
         yCell::Array{Float64,1} = mpasOcean.yCell
         # println("yCell ", sizeof(yCell))
@@ -74,22 +71,22 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         # with equal number of cells in each direction. However, for a problem with non-periodic boundary conditions,
         # it will work for the culled mesh && the final mesh, but not the base mesh.
 
-        # if determineYCellAlongLatitude
-        #     nY = Int64(round(sqrt(nCells)))
-        #     yCellAlongLatitude = zeros(Float32, nY)
-        #     iYAlongLatitude = 0+1
-        #     for iY in range(0+1,nCells,step=1)
-        #         if mod(Float64(iY),Float64(nY)) == 0.0
-        #             yCellAlongLatitude[iYAlongLatitude] = yCell[iY]
-        #             iYAlongLatitude += 1
-        #         end
-        #     end
-        #     # println("final iYAL $iYAlongLatitude, ny (size ycal) $(nY)")
-        #     DeltaYMax = maximum(diff(yCellAlongLatitude))
-        #     # println("DeltaYMax $DeltaYMax, DeltaXMax $DeltaXMax, approx $(DeltaXMax*sqrt3over2)")
-        # else
+        if determineYCellAlongLatitude
+            nY = Int64(round(sqrt(nCells)))
+            yCellAlongLatitude = zeros(Float32, nY)
+            iYAlongLatitude = 0+1
+            for iY in range(0+1,nCells,step=1)
+                if mod(Float64(iY),Float64(nY)) == 0.0
+                    yCellAlongLatitude[iYAlongLatitude] = yCell[iY]
+                    iYAlongLatitude += 1
+                end
+            end
+            # println("final iYAL $iYAlongLatitude, ny (size ycal) $(nY)")
+            DeltaYMax = maximum(diff(yCellAlongLatitude))
+            # println("DeltaYMax $DeltaYMax, DeltaXMax $DeltaXMax, approx $(DeltaXMax*sqrt3over2)")
+        else
             DeltaYMax = DeltaXMax*sqrt3over2*2#+100
-        # end
+        end
         xEdge = mpasOcean.xEdge
         yEdge = mpasOcean.yEdge
 
@@ -99,10 +96,8 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         nEdges = length(angleEdge)
         nCells = mpasOcean.nCells
         computed_angleEdge = zeros(nEdges)
-        tolerance = 10.0^(-3.0)
-        if printOutput && printRelevantMeshData
-            println("The relevant mesh data is:")
-        end
+        tolerance = 1e-3
+
     # DeltaXs = zeros(Float64, nEdges)
     # DeltaYs = zeros(Float64, nEdges)
 

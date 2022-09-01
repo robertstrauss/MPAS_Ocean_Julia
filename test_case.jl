@@ -2,108 +2,58 @@ include("mode_forward/time_steppers.jl")
 include("mode_init/MPAS_Ocean.jl")
 include("visualization.jl")
 
-using PyPlot
-using PyCall
+using DelimitedFiles
 
-patch = pyimport("matplotlib.patches")
-col = pyimport("matplotlib.collections")
-animation = pyimport("matplotlib.animation")
+nCellsX = 100
 
-testCase1 = true
-if testCase1
-    mpasOcean = MPAS_Ocean(mesh_directory = "MPAS_O_Shallow_Water/Mesh+Initial_Condition+Registry_Files/Periodic",
-                        base_mesh_file_name = "base_mesh.nc",
-                        mesh_file_name = "mesh.nc")
+mpasOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
+                    "culled_mesh_$(nCellsX).nc",
+                    "mesh_$(nCellsX).nc", periodicity="NonPeriodic_x", nvlevel=1)
 
 
-    function gaussianInit!(mpasOcean)
-        # define gaussian initial condition
-        for iCell in 1:mpasOcean.nCells
-            mpasOcean.sshCurrent[iCell] = exp(
-                (
-                    -(mpasOcean.yCell[iCell] - 20000)^2
-                    -(mpasOcean.xCell[iCell] - 30000)^2
-                ) / ( 1.0e7 )
-            )
-        end
+meanCoriolisParameterf = sum(mpasOcean.fEdge) / length(mpasOcean.fEdge)
+meanFluidThicknessH = sum(mpasOcean.bottomDepth)/length(mpasOcean.bottomDepth)
+c = sqrt(mpasOcean.gravity*meanFluidThicknessH)
+rossbyRadiusR = c/meanCoriolisParameterf
 
-        mpasOcean.normalVelocityCurrent = zeros(mpasOcean.nEdges)
-    end
-
-    # calculate dt based on CFL condition
-    dt = 0.1 * minimum(mpasOcean.dcEdge) / sqrt( gravity  * maximum(mpasOcean.bottomDepth) )
-    println("dt: ", dt)
-
-    simulationTime = dt*1000
-
-    nFrames = 100
-
-    sshOverTimeFE = zeros(Float64, (nFrames, mpasOcean.nCells))
-    sshOverTimeFB = zeros(Float64, (nFrames, mpasOcean.nCells))
-
-
-    # plot sea surface height every interval of 1.0e-3 seconds
-    function cb!(mpasOcean, t, arr)
-        if t%(simulationTime/nFrames) <= dt
-            frame = 1+Int(floor(t*nFrames/simulationTime))
-            if frame <= size(arr)[1]
-                arr[frame,:] = mpasOcean.sshCurrent[:]
-            end
-        end
-    end
-    cbFE(mpasOcean, t) = cb!(mpasOcean, t, sshOverTimeFE)
-    cbFB(mpasOcean, t) = cb!(mpasOcean, t, sshOverTimeFB)
-
-    # solve it, integrate!
-    gaussianInit!(mpasOcean)
-    forwardEuler!(mpasOcean, dt, simulationTime, cbFE)
-    gaussianInit!(mpasOcean)
-    forwardBackward!(mpasOcean, dt, simulationTime, cbFB)
-
-
-
-
-    fig = figure()
-
-    ax1 = fig.add_subplot(1, 3, 1)
-    ax2 = fig.add_subplot(1, 3, 2)
-    ax3 = fig.add_subplot(1, 3, 3)
-
-    cMax1 = maximum(abs.(sshOverTimeFE))
-    cMax2 = maximum(abs.(sshOverTimeFB))
-    cMax3 = maximum(abs.(sshOverTimeFE .- sshOverTimeFB))
-
-    ccbar1 = "new"
-    ccbar2 = "new"
-    ccbar3 = "new"
-
-    function nextFrame(i)
-
-        global ccbar1, ccbar2, ccbar3
-
-        j = i+1
-
-        ffig1, aax1, ccbar1 = heatMapMesh(mpasOcean, sshOverTimeFE[j,:]; fig=fig, ax=ax1, cbar=ccbar1, cMin=-cMax1, cMax=cMax1)
-        aax1.set_title("Forward Euler")
-        ffig2, aax2, ccbar2 = heatMapMesh(mpasOcean, sshOverTimeFB[j,:]; fig=fig, ax=ax2, cbar=ccbar2, cMin=-cMax2, cMax=cMax2)
-        aax2.set_title("Forward Backward")
-        ffig3, aax3, ccbar3 = heatMapMesh(mpasOcean, sshOverTimeFE[j,:] .- sshOverTimeFB[j,:]; fig=fig, ax=ax3, cbar=ccbar3, cMin=-cMax3, cMax=cMax3)
-        aax3.set_title("Difference")
-
-        fig.suptitle("frame $j of $nFrames")
-
-        return [aax1, aax2, aax3]
-
-    end
-
-    for i in 0:nFrames-1
-        nextFrame(i)
-        display(fig)
-        # sleep(0.01)
-    end
-
-    # anim = animation.FuncAnimation(fig, nextFrame)
-    #
-    # anim.save("plots/test2/eulervsFB.mp4")
-
+function lateralProfilePeriodic(y)
+    return 1e-3*cos(y/mpasOcean.lY * 4 * pi)
 end
+    
+period = mpasOcean.lY / (4*pi) /c
+
+lateralProfile = lateralProfilePeriodic
+    
+kelvinWaveExactNormalVelocity, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition! = kelvinWaveGenerator(mpasOcean, lateralProfile)
+
+nSamples = 10
+nSteps = 24
+
+sampletimes = zeros(Float64, nSamples)
+
+exacttime = 0; kelvinWaveExactSolution!(mpasOcean, exacttime)
+
+for sample in 1:nSamples
+    sampletimes[sample] = @elapsed begin
+        for i in 1:nSteps
+            calculate_normal_velocity_tendency!(mpasOcean)
+
+            boundaryCondition!(mpasOcean, exacttime)
+
+            calculate_ssh_tendency!(mpasOcean)
+            update_ssh_by_tendency!(mpasOcean)
+
+            exacttime += mpasOcean.dt
+        end
+    end
+end
+
+
+fpath = CODE_ROOT * "output/serialCPU_timing/coastal_kelvinwave/steps_$nSteps/nCellsX_$nCellsX/"
+mkpath(fpath)
+fname = "$fpath$(Dates.now()).txt"
+open(fname, "w") do io
+    writedlm(io, sampletimes)
+end
+println("saved to $fname")
+

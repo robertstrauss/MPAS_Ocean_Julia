@@ -1,14 +1,14 @@
 include("mode_forward/time_steppers.jl")
 include("mode_init/MPAS_Ocean.jl")
-include("visualization.jl")
-
+include("mode_init/exactsolutions.jl")
+CODE_ROOT = pwd() * "/"
 using DelimitedFiles
-
+using Dates
 nCellsX = 100
 
 mpasOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
                     "culled_mesh_$(nCellsX).nc",
-                    "mesh_$(nCellsX).nc", periodicity="NonPeriodic_x", nvlevel=1)
+                    "mesh_$(nCellsX).nc", periodicity="NonPeriodic_x", nvlevels=1)
 
 
 meanCoriolisParameterf = sum(mpasOcean.fEdge) / length(mpasOcean.fEdge)
@@ -35,6 +35,7 @@ exacttime = 0; kelvinWaveExactSolution!(mpasOcean, exacttime)
 
 for sample in 1:nSamples
     sampletimes[sample] = @elapsed begin
+	global exacttime
         for i in 1:nSteps
             calculate_normal_velocity_tendency!(mpasOcean)
 

@@ -35,7 +35,6 @@ function kelvinwaveserialperformance(fname, nCellsX, nSamples=10, nSteps=10)
 
     for sample in 1:nSamples
         sampletimes[sample] = @elapsed begin
-        global exacttime
             for i in 1:nSteps
                 calculate_normal_velocity_tendency!(mpasOcean)
 
@@ -51,6 +50,10 @@ function kelvinwaveserialperformance(fname, nCellsX, nSamples=10, nSteps=10)
 
     println("times: $sampletimes")
     
+    open(fname, "w") do io
+        writedlm(io, sampletimes)
+    end
+    
     println("saved to $fname")
     
     return mpasOcean, exacttime
@@ -59,13 +62,11 @@ end
 
 nCellsX = parse(Int64, ARGS[1])
 nSamples = parse(Int64, ARGS[2])
+nSteps = 10
 
 fpath = CODE_ROOT * "output/serialCPU_timing/coastal_kelvinwave/steps_$nSteps/resolution_$(nCellsX)x$(nCellsX)/"
 mkpath(fpath)
 fname = "$fpath$(Dates.now()).txt"
-open(fname, "w") do io
-    writedlm(io, sampletimes)
-end
 println("output file: $fname")
 
-kelvinwaveserialperformance(fname, nCellsX, nSamples)
+kelvinwaveserialperformance(fname, nCellsX, nSamples, nSteps)

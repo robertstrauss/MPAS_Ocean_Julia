@@ -1,12 +1,9 @@
-import CUDA
-import Base.Threads
-
 include("../mode_init/MPAS_Ocean.jl")
 
 ### CPU tendency calculation
 
 function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
-    @fastmath for iEdge::Int64 in 1:mpasOcean.nEdges # Threads.@threads
+    @fastmath for iEdge in 1:mpasOcean.nEdges
 		mpasOcean.normalVelocityTendency[iEdge,:] .= 0.0
 
         if mpasOcean.boundaryEdge[iEdge] == 0
@@ -19,7 +16,7 @@ function calculate_normal_velocity_tendency!(mpasOcean::MPAS_Ocean)
             end
 
             # coriolis term
-            for i::Int64 in 1:mpasOcean.nEdgesOnEdge[iEdge]
+            for i in 1:mpasOcean.nEdgesOnEdge[iEdge]
                 eoe = mpasOcean.edgesOnEdge[i,iEdge]
 
                 if eoe != 0

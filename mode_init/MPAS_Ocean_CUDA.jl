@@ -32,8 +32,9 @@ mutable struct MPAS_Ocean_CUDA
 	angleEdge::CUDA.CuArray{Float64,1}
 
 
-	normalVelocityTendency::CUDA.CuArray{Float64,2}
-	normalVelocityCurrent::CUDA.CuArray{Float64,2}
+	normalVelocityTendency::CUDA.CuArray{Float64,1}
+	normalVelocityCurrent::CUDA.CuArray{Float64,1}
+    
 	weightsOnEdge::CUDA.CuArray{Float64,2}
 
 
@@ -42,7 +43,7 @@ mutable struct MPAS_Ocean_CUDA
 	cellsOnEdge::CUDA.CuArray{Int64,2}
 	edgesOnEdge::CUDA.CuArray{Int64,2}
 
-	boundaryEdge::CUDA.CuArray{Int64,2} # only 0 or 1, could be less exact datatype. But will that slow down more by causing casting?
+	boundaryEdge::CUDA.CuArray{Int8,2} # only 0 or 1, could be less exact datatype. But will that slow down more by causing casting?
 
 	# scalars
 	nCells::Int64

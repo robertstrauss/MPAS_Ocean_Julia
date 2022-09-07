@@ -62,7 +62,7 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
 
 
         dcEdge = round(maximum(mpasOcean.dcEdge))
-        DeltaXMax = maximum(mpasOcean.dcEdge)
+        DeltaXMax = maximum(mpasOcean.dcEdge) * 1.1
         xCell::Array{Float64,1} = mpasOcean.xCell
         yCell::Array{Float64,1} = mpasOcean.yCell
         # println("yCell ", sizeof(yCell))
@@ -71,7 +71,7 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         # with equal number of cells in each direction. However, for a problem with non-periodic boundary conditions,
         # it will work for the culled mesh && the final mesh, but not the base mesh.
 
-        if determineYCellAlongLatitude
+        if false #determineYCellAlongLatitude
             nY = Int64(round(sqrt(nCells)))
             yCellAlongLatitude = zeros(Float32, nY)
             iYAlongLatitude = 0+1

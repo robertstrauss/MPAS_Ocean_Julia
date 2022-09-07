@@ -32,8 +32,8 @@ include(CODE_ROOT * "mode_init/MPAS_Ocean.jl")
 
 include(CODE_ROOT * "mode_init/MPAS_OceanHalos.jl")
 
-include(CODE_ROOT * "mode_init/initial_conditions.jl")
-#include(CODE_ROOT * "mode_init/exactsolutions.jl")
+# include(CODE_ROOT * "mode_init/initial_conditions.jl")
+include(CODE_ROOT * "mode_init/exactsolutions.jl")
 
 include(CODE_ROOT * "mode_forward/update_halos.jl")
 include(CODE_ROOT * "mode_forward/time_steppers.jl")

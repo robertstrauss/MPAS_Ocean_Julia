@@ -42,23 +42,23 @@ As well as verification/validation done to back-up the results.
 #### CPU-GPU performance test
 Data from performance tests run on Strauss's computer are included in the `./output/asrock/` directory.
 To re-run the simulation on your machine and create new data (or just to look at simulation visualization and other information about the simulation):
-    * (A CUDA-compatible device (computer with an NVIDIA GPU) is required.)
-    * Start a jupyter server and open the notebook `./GPU_CPU_performance_comparison_meshes.ipynb`.
-    * Run all the cells to create data files of the performance at `./output/asrock/serialGPU_timing/coastal_kelvinwave/steps_20/resolution_64x64/nvlevels_100/`.
+* (A CUDA-compatible device (computer with an NVIDIA GPU) is required.)
+* Start a jupyter server and open the notebook `./GPU_CPU_performance_comparison_meshes.ipynb`.
+* Run all the cells to create data files of the performance at `./output/asrock/serialGPU_timing/coastal_kelvinwave/steps_20/resolution_64x64/nvlevels_100/`.
 
 Whether creating new data or using the included, the table from the paper can be recreated:
-    * Open and run the notebook `./GPU_CPU_performance_comparison_meshes.ipynb` to recreate the tables shown in the paper.
+* Open and run the notebook `./GPU_CPU_performance_comparison_meshes.ipynb` to recreate the tables shown in the paper.
 
 #### MPI (distributed) scaling test
 Data from tests run on NERSC's cori-haswell are included in the `./output/` directory.
 To re-run the simulations on your cluster and create new data:
-    * Run `./scaling_test/scaling_test.jl` using mpi, and specify the tests to do <br>
-        $ `~/.julia/bin/mpiexecjl --project=. -n <nprocs> julia ./scaling_test/scaling_test.jl <cells> <samples> <proccounts>` <br>
-        Where \<nprocs\> = the number of processors needed for the trial distributed over the most processors (should be power of 2), <br>
-            \<cells\> = the width of the mesh to use for all trials (128, 256, 512 used in paper), <br>
-            \<samples\> = the number of times to re-run a simulation for each trial (reccomended at least 2, the first run is often an outlier), <br>
-            \<proccounts\> = a list of how many processor should be used for each trial (use powers of 2, seperated by commas, e.g. 2,8,16,32,256 would run 5 trials, the first distributed over 2 procs, then 8, then 16, etc....) Leave blank to run all powers of 2 up to the number of allocated processors (\<nprocs\>). <br>
-    * The results will be saved in `./output/kelvinwave/resolution<cells>x<cells>/procs<nprocs>/steps10/nvlevels100/` <br>
+* Run `./scaling_test/scaling_test.jl` using mpi, and specify the tests to do <br>
+    $ `~/.julia/bin/mpiexecjl --project=. -n <nprocs> julia ./scaling_test/scaling_test.jl <cells> <samples> <proccounts>` <br>
+    Where \<nprocs\> = the number of processors needed for the trial distributed over the most processors (should be power of 2), <br>
+        \<cells\> = the width of the mesh to use for all trials (128, 256, 512 used in paper), <br>
+        \<samples\> = the number of times to re-run a simulation for each trial (reccomended at least 2, the first run is often an outlier), <br>
+        \<proccounts\> = a list of how many processor should be used for each trial (use powers of 2, seperated by commas, e.g. 2,8,16,32,256 would run 5 trials, the first distributed over 2 procs, then 8, then 16, etc....) Leave blank to run all powers of 2 up to the number of allocated processors (\<nprocs\>). <br>
+* The results will be saved in `./output/kelvinwave/resolution<cells>x<cells>/procs<nprocs>/steps10/nvlevels100/` <br>
 
 The plots from the paper can be recreated in the notebook `./output/kelvinwave/performanceplost.ipynb` using our data or your new data.
 

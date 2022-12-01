@@ -5,21 +5,20 @@ function kelvinWaveGenerator(mpasOcean, lateralProfile)
     rossbyRadiusR = c/meanCoriolisParameterf
 
     function kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t=0)
-        v = c * lateralProfile(mpasOcean.yEdge[iEdge] .+ c*t) * exp(-mpasOcean.xEdge[iEdge]/rossbyRadiusR)
-        return v*sin(mpasOcean.angleEdge[iEdge])
+        v = c * lateralProfile.(mpasOcean.yEdge[iEdge] .+ c*t) .* exp.(-mpasOcean.xEdge[iEdge]/rossbyRadiusR)
+        return v .* sin.(mpasOcean.angleEdge[iEdge])
     end
 
     function kelvinWaveExactSSH(mpasOcean, iCell, t=0)
-        return - meanFluidThicknessH * lateralProfile(mpasOcean.yCell[iCell] .+ c*t) * exp(-mpasOcean.xCell[iCell]/rossbyRadiusR)
+        return - meanFluidThicknessH * lateralProfile.(mpasOcean.yCell[iCell] .+ c*t) .* exp.(-mpasOcean.xCell[iCell]/rossbyRadiusR)
     end
 
     function kelvinWaveExactSolution!(mpasOcean, t=0)
-        for iCell in 1:mpasOcean.nCells
-            mpasOcean.sshCurrent[iCell] = kelvinWaveExactSSH(mpasOcean, iCell, t)
-        end
+        mpasOcean.sshCurrent[:] = kelvinWaveExactSSH(mpasOcean, collect(1:mpasOcean.nCells), t)
 
-        for iEdge in 1:mpasOcean.nEdges
-            mpasOcean.normalVelocityCurrent[iEdge,:] .= kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)
+        mpasOcean.normalVelocityCurrent[:,1] = kelvinWaveExactNormalVelocity(mpasOcean, collect(1:mpasOcean.nEdges), t)
+        for k in 2:mpasOcean.nVertLevels
+            mpasOcean.normalVelocityCurrent[:,k] = mpasOcean.normalVelocityCurrent[:,1]
         end
     end
 

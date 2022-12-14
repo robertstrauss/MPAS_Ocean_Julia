@@ -25,7 +25,7 @@ function kelvinWaveGenerator(mpasOcean, lateralProfile)
     function boundaryCondition!(mpasOcean, t)
         for iEdge in 1:mpasOcean.nEdges
             if mpasOcean.boundaryEdge[iEdge] == 1.0
-                mpasOcean.normalVelocityCurrent[iEdge,:] .= kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)
+                mpasOcean.normalVelocityCurrent[iEdge,:] .= kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)/mpasOcean.nVertLevels
             end
         end
 
@@ -69,6 +69,14 @@ function inertiaGravityExactSolution!(mpasOcean::MPAS_Ocean, etaHat::Float64, f0
         
         mpasOcean.normalVelocityCurrent[iEdge] = u*cos(theta) + v*sin(theta)
     end
+end
+function inertiaGravityExactNormalVelocity(theta, etaHat,f0,g,kX,kY,omega,x,y,t)
+
+    u = DetermineInertiaGravityWaveExactZonalVelocity(etaHat, f0, g, kX, kY, omega, x, y, t)
+
+    v = DetermineInertiaGravityWaveExactMeridionalVelocity(etaHat, f0, g, kX, kY, omega, x, y, t)
+
+    return u*cos(theta) + v*sin(theta)
 end
 function DetermineInertiaGravityWaveExactMeridionalVelocity(etaHat,f0,g,kX,kY,omega,x,y,time)
     v = etaHat*(g/(omega^2.0 - f0^2.0)*(omega*kY*cos(kX*x + kY*y - omega*time)

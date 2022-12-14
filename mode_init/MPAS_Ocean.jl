@@ -375,7 +375,8 @@ mutable struct MPAS_Ocean
 		mpasOcean.gravity = 9.8
 
 		# calculate minimum dt based on CFL condition
-		mpasOcean.dt = 0.1 * minimum(mpasOcean.dcEdge) / sqrt(mpasOcean.gravity * maximum(mpasOcean.bottomDepth))
+        courantNumber = 0.4
+		mpasOcean.dt = courantNumber * minimum(mpasOcean.dcEdge) / sqrt(mpasOcean.gravity * maximum(mpasOcean.bottomDepth))
 
 		ocn_init_routines_compute_max_level!(mpasOcean)
 # end

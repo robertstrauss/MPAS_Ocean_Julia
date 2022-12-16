@@ -1,6 +1,6 @@
 function kelvinWaveGenerator(mpasOcean, lateralProfile)
     meanCoriolisParameterf = sum(mpasOcean.fEdge) / length(mpasOcean.fEdge)
-    meanFluidThicknessH = sum(mpasOcean.bottomDepth)/length(mpasOcean.bottomDepth)
+    meanFluidThicknessH = sum(mpasOcean.bottomDepth) / length(mpasOcean.bottomDepth)
     c = sqrt(mpasOcean.gravity*meanFluidThicknessH)
     rossbyRadiusR = c/meanCoriolisParameterf
 
@@ -14,18 +14,22 @@ function kelvinWaveGenerator(mpasOcean, lateralProfile)
     end
 
     function kelvinWaveExactSolution!(mpasOcean, t=0)
-        mpasOcean.sshCurrent[:] = kelvinWaveExactSSH(mpasOcean, collect(1:mpasOcean.nCells), t)
+        # just calculate exact solution once then copy it to lower layers
+        sshperlayer = kelvinWaveExactSSH(mpasOcean, collect(1:mpasOcean.nCells), t) / mpasOcean.nVertLevels
+        for k in 1:mpasOcean.nVertLevels
+            mpasOcean.layerThickness[k,:] .+= sshperlayer # add, don't replace, thickness contributes to level depth
+        end
 
-        mpasOcean.normalVelocityCurrent[:,1] = kelvinWaveExactNormalVelocity(mpasOcean, collect(1:mpasOcean.nEdges), t)
-        for k in 2:mpasOcean.nVertLevels
-            mpasOcean.normalVelocityCurrent[:,k] = mpasOcean.normalVelocityCurrent[:,1]
+        nvperlayer = kelvinWaveExactNormalVelocity(mpasOcean, collect(1:mpasOcean.nEdges), t) / mpasOcean.nVertLevels
+        for k in 1:mpasOcean.nVertLevels
+            mpasOcean.normalVelocityCurrent[k,:] .= nvperlayer
         end
     end
 
     function boundaryCondition!(mpasOcean, t)
         for iEdge in 1:mpasOcean.nEdges
             if mpasOcean.boundaryEdge[iEdge] == 1.0
-                mpasOcean.normalVelocityCurrent[iEdge,:] .= kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)/mpasOcean.nVertLevels
+                mpasOcean.normalVelocityCurrent[:,iEdge] .= kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)/mpasOcean.nVertLevels
             end
         end
 
@@ -54,7 +58,7 @@ function inertiaGravityExactSolution!(mpasOcean::MPAS_Ocean, etaHat::Float64, f0
         x = mpasOcean.xCell[iCell]
         y = mpasOcean.yCell[iCell]
         
-        mpasOcean.sshCurrent[iCell] = DetermineInertiaGravityWaveExactSurfaceElevation(etaHat,kX,kY,omega,x,y,t)
+        mpasOcean.layerThickness[:,iCell] = DetermineInertiaGravityWaveExactSurfaceElevation(etaHat,kX,kY,omega,x,y,t) / mpasOcean.nVertLevels
     end
     
     for iEdge in 1:mpasOcean.nEdges
@@ -67,7 +71,7 @@ function inertiaGravityExactSolution!(mpasOcean::MPAS_Ocean, etaHat::Float64, f0
         
         theta = mpasOcean.angleEdge[iEdge]
         
-        mpasOcean.normalVelocityCurrent[iEdge] = u*cos(theta) + v*sin(theta)
+        mpasOcean.normalVelocityCurrent[:,iEdge] = ( u*cos(theta) + v*sin(theta) ) / mpasOcean.nVertLevels
     end
 end
 function inertiaGravityExactNormalVelocity(theta, etaHat,f0,g,kX,kY,omega,x,y,t)

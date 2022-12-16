@@ -101,14 +101,12 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
     # DeltaXs = zeros(Float64, nEdges)
     # DeltaYs = zeros(Float64, nEdges)
 
-    for iEdge in range(0+1,nEdges,step=1)
+    for iEdge in range(1,nEdges,step=1)
         thisXEdge = xEdge[iEdge]
         thisYEdge = yEdge[iEdge]
-        cell1 = cellsOnEdge[0+1,iEdge]
-        cell2 = cellsOnEdge[1+1,iEdge]
-        if cell1 == 0
-            println("cell1 0 $iEdge $(mpasOcean.cellsOnEdge[:,iEdge-2:iEdge+2])")
-        end
+        cell1 = cellsOnEdge[1,iEdge]
+        cell2 = cellsOnEdge[2,iEdge]
+        
         xCell1 = xCell[cell1]
         yCell1 = yCell[cell1]
 

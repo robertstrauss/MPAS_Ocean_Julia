@@ -1,6 +1,24 @@
+Figure 1: Operator and IG wave numerical solution convergence
+	plotted in output/operator_convergence/operator_convergence_plotting.ipynb
+	using data from /output/operator_convergence/[...]/NonPeriodic_xy/[...].txt
+		produced in /Operator_testing.ipynb
+	also using plots from /InertiaGravityWaveConvergenceTest.ipynb
 
+
+Table 1: 
+
+Table 2:
+
+Figure 2:
+	Produced by M. Petersen
+
+
+Figure 3: Simulation speed and Occupancy
+	plotted in /CUDAOccupancyTest.ipynb
+	data saved at /output/cuda_occupancy/[...].txt
 
 Figure 4: Scaling Test comparing julia and fortran on three mesh resolutions
+and Figure 5: Proportion computation vs communication
 	plotted in output/kelvinwave/performanceplots.ipynb
 	using data from
 		Fortran: /output/kelvinwave/fortranperformance/resolution<X>x<X>/cori-haswell_<p>_[...].txt
@@ -11,3 +29,4 @@ Figure 4: Scaling Test comparing julia and fortran on three mesh resolutions
 				sbatch [...] mpiexecjl -n <p> julia --project ./scaling_test/scaling_test.jl <X> <s>
 				sbatch -o sbatch_logs/%A.out -e sbatch_logs/%A_%t.err -A e3sm -C haswell --distribution=plane=64 --ntasks-per-node=64 --qos=regular -t 20:00 -N 32 mpiexecjl -n 2048 julia --project ./scaling_test/scaling_test.jl 128 6
 
+	

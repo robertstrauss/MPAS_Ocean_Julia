@@ -58,7 +58,7 @@ function inertiaGravityExactSolution!(mpasOcean::MPAS_Ocean, etaHat::Float64, f0
         x = mpasOcean.xCell[iCell]
         y = mpasOcean.yCell[iCell]
         
-        mpasOcean.layerThickness[:,iCell] = DetermineInertiaGravityWaveExactSurfaceElevation(etaHat,kX,kY,omega,x,y,t) / mpasOcean.nVertLevels
+        mpasOcean.layerThickness[:,iCell] .+= DetermineInertiaGravityWaveExactSurfaceElevation(etaHat,kX,kY,omega,x,y,t) / mpasOcean.nVertLevels
     end
     
     for iEdge in 1:mpasOcean.nEdges
@@ -71,7 +71,7 @@ function inertiaGravityExactSolution!(mpasOcean::MPAS_Ocean, etaHat::Float64, f0
         
         theta = mpasOcean.angleEdge[iEdge]
         
-        mpasOcean.normalVelocityCurrent[:,iEdge] = ( u*cos(theta) + v*sin(theta) ) / mpasOcean.nVertLevels
+        mpasOcean.normalVelocityCurrent[:,iEdge] .= ( u*cos(theta) + v*sin(theta) ) / mpasOcean.nVertLevels
     end
 end
 function inertiaGravityExactNormalVelocity(theta, etaHat,f0,g,kX,kY,omega,x,y,t)

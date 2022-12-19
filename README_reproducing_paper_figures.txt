@@ -1,0 +1,13 @@
+
+
+Figure 4: Scaling Test comparing julia and fortran on three mesh resolutions
+	plotted in output/kelvinwave/performanceplots.ipynb
+	using data from
+		Fortran: /output/kelvinwave/fortranperformance/resolution<X>x<X>/cori-haswell_<p>_[...].txt
+			Produced by M. Petersen, using MPAS on cori-haswell
+			nonlinear terms disabled, other modifications for fair comparison
+		Julia: /output/kelvinwave/resolution<X>x<X>/procs2048/steps10/nvlevels100/[...].txt
+			Produced by running /scaling_test/scaling_test.jl on cori-haswell:
+				sbatch [...] mpiexecjl -n <p> julia --project ./scaling_test/scaling_test.jl <X> <s>
+				sbatch -o sbatch_logs/%A.out -e sbatch_logs/%A_%t.err -A e3sm -C haswell --distribution=plane=64 --ntasks-per-node=64 --qos=regular -t 20:00 -N 32 mpiexecjl -n 2048 julia --project ./scaling_test/scaling_test.jl 128 6
+

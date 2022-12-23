@@ -12,7 +12,7 @@ using DataFrames
 using CSV
 using LinearAlgebra
 using BenchmarkTools
-import Plots
+# import Plots
 import Dates
 
 using TimerOutputs
@@ -88,33 +88,36 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 	lateralProfilePeriodic(y) = 1e-6*cos(y/lYedge * 4 * pi)
 	lateralProfile = lateralProfilePeriodic
 
-	function kelvinWaveExactNormalVelocity(mpasOcean::MPAS_Ocean, iEdge::Int64, t=0.0)
-		v = sqrt(gravity*meanFluidThicknessH) * lateralProfile(mpasOcean.yEdge[iEdge] .+ c*t) * exp(-mpasOcean.xEdge[iEdge]/rossbyRadiusR)
-		return v*sin(mpasOcean.angleEdge[iEdge])
+	function kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t=0)
+		v = c * lateralProfile.(mpasOcean.yEdge[iEdge] .+ c*t) .* exp.(-mpasOcean.xEdge[iEdge]/rossbyRadiusR)
+		return v .* sin.(mpasOcean.angleEdge[iEdge])
+        end
+
+	function kelvinWaveExactSSH(mpasOcean, iCell, t=0)
+		return - meanFluidThicknessH * lateralProfile.(mpasOcean.yCell[iCell] .+ c*t) .* exp.(-mpasOcean.xCell[iCell]/rossbyRadiusR)
 	end
 
-	function kelvinWaveExactSSH(mpasOcean::MPAS_Ocean, iCell::Int64, t=0.0)
-		return - meanFluidThicknessH * lateralProfile(mpasOcean.yCell[iCell] .+ c*t) * exp(-mpasOcean.xCell[iCell]/rossbyRadiusR)
-	end
-
-	function kelvinWaveExactSolution!(mpasOcean::MPAS_Ocean, t=0.0)
-		for iCell in 1:mpasOcean.nCells
-		    mpasOcean.sshCurrent[iCell] = kelvinWaveExactSSH(mpasOcean, iCell, t)
+	function kelvinWaveExactSolution!(mpasOcean, t=0)
+		# just calculate exact solution once then copy it to lower layers
+		sshperlayer = kelvinWaveExactSSH(mpasOcean, collect(1:mpasOcean.nCells), t) / mpasOcean.nVertLevels
+		for k in 1:mpasOcean.nVertLevels
+		    mpasOcean.layerThickness[k,:] .+= sshperlayer # add, don't replace, thickness contributes to level depth
 		end
 
-		for iEdge in 1:mpasOcean.nEdges
-		    mpasOcean.normalVelocityCurrent[iEdge] = kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)
+		nvperlayer = kelvinWaveExactNormalVelocity(mpasOcean, collect(1:mpasOcean.nEdges), t) / mpasOcean.nVertLevels
+		for k in 1:mpasOcean.nVertLevels
+		    mpasOcean.normalVelocityCurrent[k,:] .= nvperlayer
 		end
 	end
 
 	function boundaryCondition!(mpasOcean, t)
-		@fastmath for iEdge in 1:mpasOcean.nEdges
-			if mpasOcean.boundaryEdge[iEdge] == 1.0
-				mpasOcean.normalVelocityCurrent[iEdge] = kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)
-			end
+		for iEdge in 1:mpasOcean.nEdges
+		    if mpasOcean.boundaryEdge[iEdge] == 1.0
+			mpasOcean.normalVelocityCurrent[:,iEdge] .= kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)/mpasOcean.nVertLevels
+		    end
 		end
-	end
 
+	    end
 
 #	timout = TimerOutput()
 
@@ -231,13 +234,14 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 					sampletimessim[jsample] += @elapsed begin
 						for h in 1:halowidth
 							calculate_normal_velocity_tendency!(mpasOcean)
+							update_normal_velocity_by_tendency!(mpasOcean)
 
+							exacttime += mpasOcean.dt
 							boundaryCondition!(mpasOcean, exacttime)
 
-							calculate_ssh_tendency!(mpasOcean)
-							update_ssh_by_tendency!(mpasOcean)
+							calculate_thickness_tendency!(mpasOcean)
+							update_thickness_by_tendency!(mpasOcean)
 						end
-						exacttime += halowidth*mpasOcean.dt
 					end
 					sampletimesmpi[jsample] += @elapsed begin
 						update_halos!(splitcomm, mpasOcean, cellsFromMyChunk, cellsToMyChunk, edgesFromMyChunk, edgesToMyChunk)
@@ -248,10 +252,11 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
 			rootprint("generating exact sol")
 			exactssh = zero(mpasOcean.sshCurrent)
 			for iCell in 1:mpasOcean.nCells
-				exactssh[iCell,:] .= kelvinWaveExactSSH(mpasOcean, iCell, halowidth*ncycles*mpasOcean.dt)
+				exactssh[iCell] = kelvinWaveExactSSH(mpasOcean, iCell, halowidth*ncycles*mpasOcean.dt)
 			end
 
 			rootprint("calculating error")
+			mpasOcean.sshCurrent = dropdims(sum(mpasOcean.layerThickness, dims=1), dims=1) - mpasOcean.bottomDepth
 			rootprint("num: $(mpasOcean.sshCurrent[1:10]), exact: $(exactssh[1:10])")
 			difference = mpasOcean.sshCurrent .- exactssh
 			MaxErrorNorm = norm(difference, Inf)

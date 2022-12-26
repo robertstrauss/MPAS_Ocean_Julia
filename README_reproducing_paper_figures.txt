@@ -27,6 +27,5 @@ and Figure 5: Proportion computation vs communication
 		Julia: /output/kelvinwave/resolution<X>x<X>/procs2048/steps10/nvlevels100/[...].txt
 			Produced by running /scaling_test/scaling_test.jl on cori-haswell:
 				sbatch [...] mpiexecjl -n <p> julia --project ./scaling_test/scaling_test.jl <X> <s>
-				sbatch -o sbatch_logs/%A.out -e sbatch_logs/%A_%t.err -A e3sm -C haswell --distribution=plane=64 --ntasks-per-node=64 --qos=regular -t 20:00 -N 32 mpiexecjl -n 2048 julia --project ./scaling_test/scaling_test.jl 128 6
-
+				sbatch -o sbatch_logs/%A.out -e sbatch_logs/%A_%t.err -A e3sm -C haswell --distribution=plane=32 --ntasks-per-node=32 --qos=regular -t 20:00 -n 2048 mpiexecjl -n 2048 julia --project ./scaling_test/scaling_test.jl 128 12
 	

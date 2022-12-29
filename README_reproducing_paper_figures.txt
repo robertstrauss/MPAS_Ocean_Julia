@@ -23,11 +23,11 @@ Table 1 and Table 2:
                 serial_julia_performance.jl\t
                 cpu-unoptimized:
                     github: https://github.com/robertstrauss/MPAS_Ocean_Julia/tree/unoptimized
-                    zenodo: https://doi.org/10.5281/zenodo.7493065 (MPAS_Ocean_Julia-1.0.zip)
+                    zenodo: https://doi.org/10.5281/zenodo.7493065 (MPAS_Ocean_Julia-unopt.zip)
                 cpu-optimized and Julia gpu:
                     GPU_CPU_performance_comparison_meshes.ipynb at
                     github: https://github.com/robertstrauss/MPAS_Ocean_Julia/tree/main
-                    zenodo: https://doi.org/10.5281/zenodo.7493065 (MPAS_Ocean_Julia-2.0.zip)
+                    zenodo: https://doi.org/10.5281/zenodo.7493065 (MPAS_Ocean_Julia-opt.zip)
             
             using mesh files from MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes
                     available at MPAS_O_Shallow_Water_Meshes/CoastalKelvinWaveMesh/ConvergenceStudyMeshes from

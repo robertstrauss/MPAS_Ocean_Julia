@@ -1,3 +1,10 @@
 MPAS_O_Shallow_Water
 MPAS_O_Shallow_Water/
 logs/
+.ipynb_checkpoints
+ConvergenceStudyMeshes.tar.gz
+ConvergenceStudyMeshes/
+InertiaGravityWaveMesh.tar.gz
+InertiaGravityWaveMesh/
+output.tar.gz
+sbatch_logs/

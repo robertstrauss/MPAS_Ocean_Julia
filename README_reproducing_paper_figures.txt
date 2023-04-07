@@ -3,7 +3,7 @@ Figure 1: Operator and IG wave numerical solution convergence
     using data from /output/operator_convergence/[...]/NonPeriodic_xy/[...].txt
         produced in /Operator_testing.ipynb
             using mesh files MPAS_O_Shallow_Water_Mesh_Generation/ConvergenceStudyMeshes
-                available at MPAS_O_Shallow_Water_Meshes/ConvergenceStudyMeshes from
+                available at MPAS_Ocean_Shallow_Water_Meshes/ConvergenceStudyMeshes from
                     zenodo: https://zenodo.org/record/7419817#.Y63p4C-B1pQ
     also using plots from /InertiaGravityWaveConvergenceTest.ipynb
         using mesh files from InertiaGravityWaveMesh/
@@ -20,7 +20,7 @@ Table 1 and Table 2:
                 output/serialCPU_timing/coastal_kelvinwave/steps_$nSteps/resolution_$(nCellsX)x$(nCellsX)/
                 output/asrock/serial$(device)_timing/coastal_kelvinwave/steps_$nSteps/resolution_$(nCellsX)x$(nCellsX)/nvlevels_$(nvlevels)/
             made with:
-                serial_julia_performance.jl\t
+                serial_julia_performance.jl
                 cpu-unoptimized:
                     github: https://github.com/robertstrauss/MPAS_Ocean_Julia/tree/unoptimized
                     zenodo: https://doi.org/10.5281/zenodo.7493065 (MPAS_Ocean_Julia-unopt.zip)

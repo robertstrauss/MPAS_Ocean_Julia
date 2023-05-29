@@ -3,14 +3,15 @@ function kelvinWaveGenerator(mpasOcean, lateralProfile)
     meanFluidThicknessH = sum(mpasOcean.bottomDepth) / length(mpasOcean.bottomDepth)
     c = sqrt(mpasOcean.gravity*meanFluidThicknessH)
     rossbyRadiusR = c/meanCoriolisParameterf
+    lYEdge = maximum(mpasOcean.yEdge) - minimum(mpasOcean.yEdge)
 
     function kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t=0)
-        v = c * lateralProfile.(mpasOcean.yEdge[iEdge] .+ c*t) .* exp.(-mpasOcean.xEdge[iEdge]/rossbyRadiusR)
+        v = c * lateralProfile.( (mpasOcean.yEdge[iEdge] .+ c*t) .% lYEdge) .* exp.(-mpasOcean.xEdge[iEdge]/rossbyRadiusR)
         return v .* sin.(mpasOcean.angleEdge[iEdge])
     end
 
     function kelvinWaveExactSSH(mpasOcean, iCell, t=0)
-        return - meanFluidThicknessH * lateralProfile.(mpasOcean.yCell[iCell] .+ c*t) .* exp.(-mpasOcean.xCell[iCell]/rossbyRadiusR)
+        return - meanFluidThicknessH * lateralProfile.( (mpasOcean.yCell[iCell] .+ c*t) .% lYEdge ) .* exp.(-mpasOcean.xCell[iCell]/rossbyRadiusR)
     end
 
     function kelvinWaveExactSolution!(mpasOcean, t=0)

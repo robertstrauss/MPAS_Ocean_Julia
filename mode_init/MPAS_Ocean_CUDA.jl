@@ -9,10 +9,11 @@ mutable struct MPAS_Ocean_CUDA
 
     # cell centered fields
 #     sshTendency::CUDA.CuArray{Float64,1}
-    sshCurrent::CUDA.CuArray{Float64,1}
+    # sshCurrent::CUDA.CuArray{Float64,1}
+    layerThicknessTendency::CUDA.CuArray{Float64,2}
+    layerThickness::CUDA.CuArray{Float64,2}
     bottomDepth::CUDA.CuArray{Float64,1}
     areaCell::CUDA.CuArray{Float64,1}
-    layerThickness::CUDA.CuArray{Float64,2}
 
     nEdgesOnCell::CUDA.CuArray{Int64,1}
 
@@ -20,6 +21,8 @@ mutable struct MPAS_Ocean_CUDA
     cellsOnCell::CUDA.CuArray{Int64,2}
 
     edgeSignOnCell::CUDA.CuArray{Int64,2}
+    
+    maxLevelCell::CUDA.CuArray{Int64,1}
 
     # edge centered fields
     fEdge::CUDA.CuArray{Float64,1}
@@ -28,8 +31,10 @@ mutable struct MPAS_Ocean_CUDA
     yEdge::CUDA.CuArray{Float64,1}
     xEdge::CUDA.CuArray{Float64,1}
     angleEdge::CUDA.CuArray{Float64,1}
+    
+    maxLevelEdgeTop::CUDA.CuArray{Int64,1}
 
-
+    
     normalVelocityTendency::CUDA.CuArray{Float64,2}
     normalVelocityCurrent::CUDA.CuArray{Float64,2}
     weightsOnEdge::CUDA.CuArray{Float64,2}

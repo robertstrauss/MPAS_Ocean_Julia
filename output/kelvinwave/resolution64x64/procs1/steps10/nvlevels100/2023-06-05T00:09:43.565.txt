@@ -1,0 +1,2 @@
+procs,sim_time1,sim_time2,sim_time3,sim_time4,sim_time5,sim_time6,mpi_time1,mpi_time2,mpi_time3,mpi_time4,mpi_time5,mpi_time6,max_error,l2_error
+1.0,0.61858524,0.531143254,0.5151266520000001,0.516582626,0.532917478,0.515136559,0.0,0.0,0.0,0.0,0.0,0.0,0.0003703635481636738,8.989892339050925e-5

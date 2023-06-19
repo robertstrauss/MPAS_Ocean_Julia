@@ -9,64 +9,159 @@ include("MPAS_Ocean.jl")
 
 mutable struct MPAS_OceanHalos
 
-    # fullOcean::MPAS_Ocean
+    # list of indices in main MPAS ocean which this rank is managing
+    myCells::Array{Int64}
 
-    haloChunks::Array{MPAS_Ocean}
+    # maps <rank index +1> to a list of cell indices that rank has this rank needs, or vice versa
+    cellsToMyRankFrom::Dict{Int64, Array}
+    cellsFromMyRankTo::Dict{Int64, Array}
 
-    # cellsWithinHalo::AbstractArray
-    # cellsOfHalo::AbstractArray
+    # similar to cell Dicts, but with edges
+    edgesToMyRankFrom::Dict{Int64, Array}
+    edgesFromMyRankTo::Dict{Int64, Array}
 
-    # localCellsWithinHalo::AbstractArray
-    # localCellsOfHalo::AbstractArray
-
-    cellsToRank::Array
-    cellsFromRank::Array
-
-    edgesToRank::Array
-    edgesFromRank::Array
+    # maps <rank index +1> to an array equal in size and shape to the arrays of the prognostic variables of cells in the halo
+    haloBuffersCells::Dict{Int64, Array}
+    haloBuffersEdges::Dict{Int64, Array}
+    
 
     # load state from file
-    function MPAS_OceanHalos(mpasOcean, haloWidth, nXChunks, nYChunks)
-       mpasOceanHalos = new([], [], [], [], [])
+    function MPAS_OceanHalos(comm, cellsOnCell, partitions)
+        haloMesh = new()
 
-        # divide up cells of mpasOcean into rectangular grid
+	mycells = findall(proc -> proc == worldrank-1, partitions)
 
-        innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
-        mpasOceanHalos.cellsFromRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
-        mpasOceanHalos.cellsToRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
+	(haloCells = grow_halo(cellsOnCell, mycells, halowidth))
 
-        chunkWidth = mpasOcean.lX/nXChunks
-        chunkHeight = mpasOcean.lY/nYChunks
-
-        for iCell in 1:mpasOcean.nCells
-            append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
-                               Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
-        end
-
-        # make sub ocean objects
-
-        for (i, chunk) in enumerate(innerCells)
-            halo = grow_halo(mpasOcean, chunk, haloWidth)
-
-            cells    = union(chunk, halo)
-            edges    = Set(mpasOcean.edgesOnCell[cells])
-            vertices = Set(mpasOcean.verticesOnCell[cells])
-
-	    for (j, otherchunk) in enumerate(innerCells)
-		mpasOceanHalos.cellsFromRank[i,j] = findall(iCell -> iCell in otherchunk, cells)
-		mpasOceanHalos.cellsToRank[j,i]   = findall(iCell -> iCell in halo, otherchunk)
+	cellsFromRank = Dict{Int64, Array}()
+	for iCell in haloCells
+	    chunk = partitions[iCell] + 1
+	    if chunk in keys(cellsFromRank)
+		push!(cellsFromRank[chunk], iCell)
+	    else
+		cellsFromRank[chunk] = [iCell]
 	    end
+	end
+
+	# tell neighbors which cells they should send me
+	cellsToRank = Dict{Int64, Array}()
+	tag = 2 # tag for communicating halo mesh information
+	sendreqs = Array{MPI.Request,1}()
+	recvreqs = Array{MPI.Request,1}()
+
+	MPI.Barrier(comm)
+	for (chunk, cells) in cellsFromRank
+	    push!(sendreqs, MPI.Isend(cells, chunk-1, tag, comm))
+	end
+	MPI.Barrier(comm)
+	for (chunk, cells) in cellsFromRank
+	    numcells = MPI.Get_count(MPI.Probe(chunk-1, tag, comm), Int64)
+	    cellsToRank[chunk] = Array{Int64,1}(undef, numcells)
+	    push!(recvreqs, MPI.Irecv!(cellsToRank[chunk], chunk-1, tag, comm))
+	end
+	MPI.Waitall!(vcat(sendreqs, recvreqs))
+
+	haloMesh.myCells     = union(mycells, haloCells)
+
+	# order the arrays based on the local index they will have
+	haloMesh.cellsToMyRankFrom = Dict{Int64, Array}()
+	for (chunk, cells) in cellsToRank
+	    localcells = globalToLocal(cells, haloMesh.myCells)
+	    if length(localcells) > 0
+		order = sortperm(haloMesh.myCells[localcells]) # order according to global index, so received in correct place
+		haloMesh.cellsToMyRankFrom[chunk] = localcells[order]
+	    end
+	end
+	haloMesh.cellsFromMyRankTo = Dict{Int64, Array}()
+	for (chunk, cells) in cellsFromRank
+	    localcells = globalToLocal(cells, haloMesh.myCells)
+	    if length(localcells) > 0
+		order = sortperm(haloMesh.myCells[localcells]) # order according to global index, so received in correct place
+		haloMesh.cellsFromMyRankTo[chunk] = localcells[order]
+	    end
+	end
 
 
-            append!(mpasOceanHalos.haloChunks, [mpas_subset(mpasOcean, cells, edges, vertices)])
-        end
 
-        return mpasOceanHalos
+	return haloMesh
+
+#
     end
 end
 
+function fillEdgeArraysFromCells!(haloMesh, edgesOnCell)
+	myEdges = collect(Set(edgesOnCell[:,:])) # ocean will already be subsetted, so the cells are all the cells
+
+	haloMesh.edgesToMyRankFrom = Dict{Int64, Array}()
+	for (chunk, localcells) in haloMesh.cellsToMyRankFrom
+	    localedges = collect(Set(edgesOnCell[:,localcells])) # Set() to remove duplicates
+	    if length(localedges) > 0
+		order = sortperm(myEdges[localedges])  # order according to global index, so received in correct place
+		haloMesh.edgesToMyRankFrom[chunk] = localedges[order]
+	    end
+	end
+	haloMesh.edgesFromMyRankTo = Dict{Int64, Array}()
+	for (chunk, localcells) in haloMesh.cellsFromMyRankTo
+	    localedges = collect(Set(edgesOnCell[:,localcells])) # Set() to remove duplicates
+	    if length(localedges) > 0
+		order = sortperm(myEdges[localedges])  # order according to global index, so received in correct place
+		haloMesh.edgesFromMyRankTo[chunk] = localedges[order]
+	    end
+	end
+end
+
+function generateBufferArrays!(haloMesh, mpasOcean)
+
+	haloMesh.haloBuffersCells = Dict{Int64, Array}() # temporarily stores new halo layer thickness (so all can be recieved before overwriting)
+	for (srcrank, localcells) in (haloMesh.cellsToMyRankFrom)
+		haloMesh.haloBuffersCells[srcrank] = Array{eltype(mpasOcean.layerThickness)}(undef, mpasOcean.nVertLevels, length(localcells))
+	end
+	haloMesh.haloBuffersEdges = Dict{Int64, Array}() # temporarily stores new halo normal velocity
+	for (srcrank, localedges) in (haloMesh.edgesToMyRankFrom)
+		haloMesh.haloBuffersEdges[srcrank] = Array{eltype(mpasOcean.normalVelocityCurrent)}(undef, mpasOcean.nVertLevels, length(localedges)) 
+	end
+
+end
+
+
+
+
+
+
+
 function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 
+#        # divide up cells of mpasOcean into rectangular grid
+#
+#        innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
+#        haloMesh.cellsFromRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
+#        haloMesh.cellsToRank = collect([ [] for i in 1:length(innerCells), j in 1:length(innerCells)])
+#
+#        chunkWidth = mpasOcean.lX/nXChunks
+#        chunkHeight = mpasOcean.lY/nYChunks
+#
+#        for iCell in 1:mpasOcean.nCells
+#            append!(innerCells[Int(ceil(mpasOcean.xCell[iCell] / chunkWidth)),
+#                               Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
+#        end
+#
+#        # make sub ocean objects
+#
+#        for (i, chunk) in enumerate(innerCells)
+#            halo = grow_halo(mpasOcean, chunk, haloWidth)
+#
+#            cells    = union(chunk, halo)
+#            edges    = Set(mpasOcean.edgesOnCell[cells])
+#            vertices = Set(mpasOcean.verticesOnCell[cells])
+#
+#	    for (j, otherchunk) in enumerate(innerCells)
+#		haloMesh.cellsFromRank[i,j] = findall(iCell -> iCell in otherchunk, cells)
+#		haloMesh.cellsToRank[j,i]   = findall(iCell -> iCell in halo, otherchunk)
+#	    end
+#
+#
+#            append!(haloMesh.haloChunks, [mpas_subset(mpasOcean, cells, edges, vertices)])
+#        end
     innerCells = collect([ [] for i in 1:nXChunks, j in 1:nYChunks])
 
 	lXedge = maximum(mpasOcean.xEdge) - minimum(mpasOcean.xEdge)
@@ -80,7 +175,7 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
                            Int(ceil(mpasOcean.yCell[iCell] / chunkHeight))], [iCell])
     end
 
-	cellsFromChunk = collect([ [] for i in 1:length(innerCells)])
+	haloMesh.cellsFromRank = collect([ [] for i in 1:length(innerCells)])
 	cellsToChunk = collect([ [] for i in 1:length(innerCells)])
 	# cellsInChunk = []
 	# edgesInChunk = []
@@ -117,7 +212,7 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 				localcells = findall(iCell -> iCell in otherchunk, cells)
 				if length(localcells) > 0
 					order = sortperm(cellsInChunk[i][localcells]) # sort relative to global index so local index order is consistent
-					append!(cellsFromChunk[i], [(j, localcells[order])])
+					append!(haloMesh.cellsFromRank[i], [(j, localcells[order])])
 				end
 		    end
 	    end
@@ -133,7 +228,7 @@ function divide_ocean(mpasOcean::MPAS_Ocean, haloWidth, nXChunks, nYChunks)
 	    end
 	end
 
-	return cellsInChunk, edgesInChunk, verticesInChunk, cellsFromChunk, cellsToChunk
+	return haloMesh #cellsInChunk, edgesInChunk, verticesInChunk, haloMesh.cellsFromRank, cellsToChunk
 end
 
 
@@ -395,11 +490,4 @@ function mpas_subset(mpasOcean::MPAS_Ocean, cells, edges, vertices)
 
     return mpasSubOcean
 
-end
-
-
-function moveArrays!(mpasOceanHalos::MPAS_OceanHalos, array_type)
-    for mpasOcean in mpasOceanHalos.HaloChunks
-        moveArrays!(mpasOcean, array_type)
-    end
 end

@@ -123,96 +123,38 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
     df = DataFrame([Int64[], collect([Float64[] for i in 1:nsamples])...,     collect([Float64[] for i in 1:nsamples])...,     Float64[], Float64[]],
                ["procs", collect(["sim_time$i" for i in 1:nsamples])...,  collect(["mpi_time$i" for i in 1:nsamples])...,  "max_error", "l2_error"])
 
-    cellsOnCell = Array{Int64,2}(replace(readdlm(partitiondir * "graph.info")[2:end,:], ""=>0))
 
     for nprocs in proccounts
         splitcomm = MPI.Comm_split(comm, Int(worldrank>nprocs), worldrank) # only use the necessary ranks for this trial
         if worldrank <= nprocs
 
+	    myoceancells = "All"
             if nprocs > 1
-                partitionfile = partitiondir * "graph.info.part.$nprocs"
-                rootprint("partitioning $nCellsX x $nCellsX x $(nvlevels) ocean among $nprocs processes with $(partitionfile)")
-                partitions = dropdims(readdlm(partitionfile), dims=2)
-                mycells = findall(proc -> proc == worldrank-1, partitions)
+		partitionfile = partitiondir * "graph.info.part.$nprocs"
+		rootprint("partitioning $nCellsX x $nCellsX x $(nvlevels) ocean among $nprocs processes with $(partitionfile)")
+		partitions = dropdims(readdlm(partitionfile), dims=2)
 
-                (haloCells = grow_halo(cellsOnCell, mycells, halowidth))
+		cellsOnCell = Array{Int64,2}(replace(readdlm(partitiondir * "graph.info")[2:end,:], ""=>0))
 
-                cellsFromChunk = Dict{Int64, Array}()
-                for iCell in haloCells
-                    chunk = partitions[iCell] + 1
-                    if chunk in keys(cellsFromChunk)
-                        push!(cellsFromChunk[chunk], iCell)
-                    else
-                        cellsFromChunk[chunk] = [iCell]
-                    end
-                end
+		haloMesh = MPAS_OceanHalos(splitcomm, cellsOnCell, partitions)
 
-                # tell neighbors which cells they should send me
-                cellsToChunk = Dict{Int64, Array}()
-                tag = 2
-                sendreqs = Array{MPI.Request,1}()
-                recvreqs = Array{MPI.Request,1}()
+                rootprint("cell count $(length(haloMesh.myCells))")
 
-                MPI.Barrier(splitcomm)
-                for (chunk, cells) in cellsFromChunk
-                    push!(sendreqs, MPI.Isend(cells, chunk-1, tag, splitcomm))
-                end
-                MPI.Barrier(splitcomm)
-                for (chunk, cells) in cellsFromChunk
-                    numcells = MPI.Get_count(MPI.Probe(chunk-1, tag, splitcomm), Int64)
-                    cellsToChunk[chunk] = Array{Int64,1}(undef, numcells)
-                    push!(recvreqs, MPI.Irecv!(cellsToChunk[chunk], chunk-1, tag, splitcomm))
-                end
-                MPI.Waitall!(vcat(sendreqs, recvreqs))
-
-                rootprint("subsetting ocean")
-
-                myCells     = union(mycells, haloCells)
-                rootprint("cell count $(length(myCells))")
-            elseif nprocs == 1
-                myCells = "All"
+		myoceancells = haloMesh.myCells
             end
 
-	    mpasOcean = MPAS_Ocean(meshpath, "culled_mesh_$(nCellsX)x$(nCellsX).nc", "mesh_$(nCellsX)x$(nCellsX).nc", periodicity="NonPeriodic_x", nvlevels=nvlevels, cells=myCells)
+	    mpasOcean = MPAS_Ocean(meshpath, "culled_mesh_$(nCellsX)x$(nCellsX).nc", "mesh_$(nCellsX)x$(nCellsX).nc", periodicity="NonPeriodic_x", nvlevels=nvlevels, cells=myoceancells)
             mpasOcean.dt = dt #1e-2 * minimum(mpasOcean.dcEdge) / c
             rootprint("dt: $(mpasOcean.dt)")
 
-            myEdges = collect(Set(mpasOcean.edgesOnCell[:,:]))
 
             if nprocs > 1
-                cellsToMyChunk = Dict{Int64, Array}()
-                for (chunk, cells) in cellsToChunk
-                    localcells = globalToLocal(cells, myCells)
-                    if length(localcells) > 0
-                        order = sortperm(myCells[localcells]) # order according to global index, so received in correct place
-                        cellsToMyChunk[chunk] = localcells[order]
-                    end
-                end
-                cellsFromMyChunk = Dict{Int64, Array}()
-                for (chunk, cells) in cellsFromChunk
-                    localcells = globalToLocal(cells, myCells)
-                    if length(localcells) > 0
-                        order = sortperm(myCells[localcells]) # order according to global index, so received in correct place
-                        cellsFromMyChunk[chunk] = localcells[order]
-                    end
-                end
-                edgesToMyChunk = Dict{Int64, Array}()
-                for (chunk, localcells) in cellsToMyChunk
-                    localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells])) # Set() to remove duplicates
-                    if length(localedges) > 0
-                        order = sortperm(myEdges[localedges])  # order according to global index, so received in correct place
-                        edgesToMyChunk[chunk] = localedges[order]
-                    end
-                end
-                edgesFromMyChunk = Dict{Int64, Array}()
-                for (chunk, localcells) in cellsFromMyChunk
-                    localedges = collect(Set(mpasOcean.edgesOnCell[:,localcells])) # Set() to remove duplicates
-                    if length(localedges) > 0
-                        order = sortperm(myEdges[localedges])  # order according to global index, so received in correct place
-                        edgesFromMyChunk[chunk] = localedges[order]
-                    end
-                end
-            end
+		fillEdgeArraysFromCells!(haloMesh, mpasOcean.edgesOnCell)
+		generateBufferArrays!(haloMesh, mpasOcean)
+
+		rootprint("rank $(worldrank): cellsToMyRankFrom:  $(collect(["$k -> $(length(lc))" for (k, lc) in haloMesh.cellsToMyRankFrom]))")
+		# println("rank $(worldrank): haloBuffersCells: $(collect(["$k -> $(length(lc))" for (k, lc) in haloMesh.haloBuffersCells]))")
+	    end
 
             rootprint("now simulating for $(halowidth*ncycles*nsamples) steps, communicating every $halowidth steps, timing $(nsamples) samples of $(halowidth*ncycles) steps")
 
@@ -237,7 +179,7 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
                     end
                     if nprocs > 1
                         sampletimesmpi[jsample] += @elapsed begin
-                            update_halos!(splitcomm, mpasOcean, cellsFromMyChunk, cellsToMyChunk, edgesFromMyChunk, edgesToMyChunk)
+			    update_halos!(splitcomm, mpasOcean, haloMesh) 
                         end
                     end
                 end

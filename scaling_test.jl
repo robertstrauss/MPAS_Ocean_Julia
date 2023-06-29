@@ -183,6 +183,7 @@ function runtests(proccounts, fname, partitiondir; nsamples=6, nCellsX=64, halow
                         end
                     end
                 end
+		Base.GC.gc()
             end
 
             rootprint("generating exact sol")

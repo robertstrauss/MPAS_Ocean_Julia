@@ -353,7 +353,7 @@ nCellsX = 512
 juliasim, juliampi, juliaprocs, fortransim, fortranmpi, fortranprocs, juliafname, fortranfname, juliasimminmax, juliampiminmax = juliafortrantimesplits(nCellsX)
 
 fig1, ax = timesplitplot(juliaprocs, juliasim, juliampi, nCellsX, "Julia")
-fig2, ax = timesplitplot(fortranprocs[end:-1:1], fortransim[end:-1:1], fortranmpi[end:-1:1], nCellsX, "Fortran")
+fig2, ax = timesplitplot(fortranprocs, fortransim, fortranmpi, nCellsX, "Fortran")
 
 if savefigs
     savenamejl = replace(juliafname[length(CODE_ROOT)+2:end], ("/" => "--"))

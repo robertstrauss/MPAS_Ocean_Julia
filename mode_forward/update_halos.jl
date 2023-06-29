@@ -47,4 +47,6 @@ function update_halos!(comm, mpasOcean, haloMesh) # cellsFromMyRank, cellsToMyCh
 	for (srcrank, localedges) in haloMesh.edgesToMyRankFrom
 		mpasOcean.normalVelocityCurrent[:,localedges] = haloMesh.haloBuffersEdges[srcrank] 
 	end
+
+	Base.GC.gc()
 end

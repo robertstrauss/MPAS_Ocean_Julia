@@ -1,5 +1,5 @@
 # MPAS Ocean in Julia
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7493065.svg)](https://doi.org/10.5281/zenodo.7493065)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7493064.svg)](https://doi.org/10.5281/zenodo.7493064)
 
 An ocean model capable of running on irregular, non-rectilinear, TRiSK-based meshes. Inspired by MPAS-Ocean in Fortran.
 
@@ -30,12 +30,15 @@ Currently only includes gravity, coriolis terms (no non-linear terms).
     $ `julia` <br>
     julia> `] activate .` <br>
     pkg> `instantiate` <br>
-6. Download the mesh files from https://zenodo.org/record/7419817, (extract the zip file), and place the `MPAS_Ocean_Shallow_Water_Meshes/InertiaGravityWaveMesh/` directory in the root of this repository, and the `MPAS_Ocean_Shallow_Water_Meshes/CoastalKelvinWaveMesh/` directory at `./MPAS_O_Shallow_Water/ConvergenceStudyMeshes/CoastalKelvinWaveMesh/` relative to this repository. <br>
-    $ `wget -O MPAS_Ocean_Shallow_Water_Meshes.zip https://zenodo.org/record/7419817/files/MPAS_Ocean_Shallow_Water_Meshes.zip?download=1` <br>
+6. Download the mesh files from https://zenodo.org/record/7411962, (extract the zip file), and place the `MPAS_Ocean_Shallow_Water_Meshes_Julia_Paper/InertiaGravityWaveMesh/ConvergenceStudyMeshes/` directory at `./MPAS_O_Shallow_Water/ConvergenceStudyMeshes/InertiaGravityWave`, and the `MPAS_Ocean_Shallow_Water_Meshes_Julia_Paper/CoastalKelvinWaveMesh/ConvergenceStudyMeshes` directory at `./MPAS_O_Shallow_Water/ConvergenceStudyMeshes/CoastalKelvinWave` relative to this repository. Also place the `InertiaGravityWaveMesh/` director in the root of this repository, and `CoastalKelvinWaveMesh/` in the root of this repository.<br>
+    $ `wget -O MPAS_Ocean_Shallow_Water_Meshes.zip https://zenodo.org/record/7411962/files/MPAS_Ocean_Shallow_Water_Meshes.zip?download=1` <br>
     $ `unzip MPAS_Ocean_Shallow_Water_Meshes.zip` <br>
-    $ `cp MPAS_Ocean_Shallow_Water_Meshes/InertiaGravityWaveMesh/ .` <br>
-    $ `cp MPAS_Ocean_Shallow_Water_Meshes/CoastalKelvinWaveMesh/ ./MPAS_O_Shallow_Water/ConvergenceStudyMeshes/` <br>
-7. To rerun the distributed simulation tests with MPI, install the julia version of the tool for starting a distributed script across nodes: <br>
+    $ `mkdir -p ./MPAS_O_Shallow_Water/ConvergenceStudyMeshes/` <br>
+    $ `cp -R MPAS_Ocean_Shallow_Water_Meshes/MPAS_Ocean_Shallow_Water_Meshes_Julia_Paper/InertiaGravityWaveMesh/ConvergenceStudyMeshes/ ./MPAS_O_Shallow_Water/ConvergenceStudyMeshes/InertiaGravityWave/` <br>
+    $ `cp -r MPAS_Ocean_Shallow_Water_Meshes/InertiaGravityWaveMesh/ .` <br>
+    $ `cp -R MPAS_Ocean_Shallow_Water_Meshes/MPAS_Ocean_Shallow_Water_Meshes_Julia_Paper/CoastalKelvinWaveMesh/ConvergenceStudyMeshes/ ./MPAS_O_Shallow_Water/ConvergenceStudyMeshes/CoastalKelvinWave` <br>
+    $ `cp -r MPAS_Ocean_Shallow_Water_Meshes/CoastalKelvinWaveMesh/ .` <br>
+7. For rerunning the distributed simulation tests with MPI, install the julia version of the tool for starting a distributed script across nodes: <br>
     julia> `using MPI` <br>
     julia> `MPI.install_mpiexecjl()` <br>
     julia> `exit()` <br>
@@ -45,9 +48,22 @@ Currently only includes gravity, coriolis terms (no non-linear terms).
 ## Reproducing figures from the paper
 
 To reproduce the figures in the paper:
- * Figure 1 (Operator and Inertia-Gravity-Wave Convergence): run the Jupyter notebook `./Operator_testing.ipynb` to run the tests and generate the data, and `./operator_convergence_plotting.ipynb` to create the plots from this data at `./output/operator_convergence/<operator>/Periodic/<figure>.pdf` and run the notebook `./InertiaGravityWaveConvergenceTest.ipynb` to generate the numerical solution time-horizon seas-surface height at `./output/simulation_convergence/inertiagravitywave/Periodic/CPU/` and convergence plot.
- * Figures 2 (Scaling on One Node, MPI and GPU), 3 (Strong Scaling), 4 (Weak Scaling), and 5 (Time Proportion): on a cluster with at least 128 nodes with 64 processes per node, use the script `./run_scaling_16x_to_512x.sh` to execute the performance scaling tests on each mesh resolution from 16x16 to 512x512. This will save its results in `./output/kelvinwave/resolution<mesh size>/procs<maximum number of processors>/steps10/nvlevels100/`. Also execute the notebook `./GPU_performance.ipynb` on a node with an NVIDIA graphics card to do performance tests on the GPU. Then, execute the notebook `./scalingplots.ipynb` or the julia script `./scalingplots.jl` to create the figures in the paper at `./plots/<type>/<figure>.pdf`. 
- * Tables 1 & 2: execute `./serial_julia_performance.jl` with julia to produce the optimized serial timing data. Then, download the unoptimized version of the codebase from https://github.com/robertstrauss/MPAS_Ocean_Julia/tree/unoptimized or MPAS_Ocean_Julia-unopt.zip from https://doi.org/10.5281/zenodo.7493065 , and execute the julia script `./serial_julia_performance.jl` in the directory of the unoptimized codebase as well. The results will be saved in text files at `./output/serialCPU_timing/coastal_kelvinwave/unoptimized/steps_10/resolution_<mesh size>/` in the unoptimized directory and `./output/serialCPU_timing/coastal_kelvinwave/steps_10/resolution_<mesh size>/` in the main/optimized directory.
+ * Figure 1 (Operator and Inertia-Gravity-Wave Convergence): run the Julia files `Operator_testing.jl` to run the tests and generate the data, and `followed by `operator_convergence_plotting.jl` to create the plots from this data at `./output/operator_convergence/<operator>/Periodic/<figure>.pdf`. Run the Julia script `InertiaGravityWaveConvergenceTest.jl` to generate the numerical solution time-horizon seas-surface height at `./output/simulation_convergence/inertiagravitywave/Periodic/CPU/` and convergence plot. For more information, visuals, and intermediate tests, use the Jupyter notebook versions of these scripts: `./Operator_testing.ipynb`, `./operator_convergence_plotting.ipynb`, and `./InertiaGravityWaveConvergenceTest.ipynb`. (A Jupyter Notebook with the proper Julia kernel can be started by running `using IJulia; IJulia.Notebook()` in the Julia shell `julia --project=.`) <br>
+    $ `julia --project=. ./Operator_testing.jl` <br>
+    $ `julia --project=. ./operator_convergence_plotting.jl` <br>
+    $ `julia --project=. ./InertiaGravityWaveConvergenceTest.jl` <br>
+ * Figures 2 (Scaling on One Node, MPI and GPU), 3 (Strong Scaling), 4 (Weak Scaling), and 5 (Time Proportion): on a cluster with at least 128 nodes with 64 processes per node, use the script `./run_scaling_16x_to_512x.sh` after modifying the slurm options specified appropriately for your cluster to execute the performance scaling tests on each mesh resolution from 16x16 to 512x512. This will save its results in `./output/kelvinwave/resolution<mesh size>/procs<maximum number of processors>/steps10/nvlevels100/`. Also execute the julia script `GPU_performance.jl` on a node with an NVIDIA graphics card to do performance tests on the GPU. Then, execute the notebook `./scalingplots.ipynb` or the julia script `scalingplots.jl` to create the figures in the paper at `./plots/<type>/<figure>.pdf`. Alternatively, use the jupyter notebooks `GPU_Performance.ipynb` and `scalingplots.ipynb` for more information, intermediate tests, and visuals. <br>
+    $ `vim ./run_scaling_16x_to_512x.sh` <br>
+    $ `bash ./run_scaling_16x_to_512x.sh` <br>
+    $ `salloc -C gpu_count:1 -t 20:00`
+    (gpu node)$ `julia --project=. ./GPU_Performance.jl` <br>
+    (gpu node)$ `exit`
+    $ `julia --project=. ./scalingplots.jl` <br>
+ * Tables 1 & 2: execute `./serial_julia_performance.jl` with julia to produce the optimized serial timing data. Then, download the unoptimized version of the codebase from https://github.com/robertstrauss/MPAS_Ocean_Julia/tree/unoptimized or MPAS_Ocean_Julia-unopt.zip from https://doi.org/10.5281/zenodo.7493065 , and execute the julia script `./serial_julia_performance.jl` in the directory of the unoptimized codebase as well. The results will be saved in text files at `./output/serialCPU_timing/coastal_kelvinwave/unoptimized/steps_10/resolution_<mesh size>/` in the unoptimized directory and `./output/serialCPU_timing/coastal_kelvinwave/steps_10/resolution_<mesh size>/` in the main/optimized directory. <br>
+    $ `julia --project=. ./serial_julia_performance.jl <mesh size x> <number of samples>` <br>
+    (if cloned with git)$ `git checkout unoptimized` <br>
+    $ `julia --project=. ./serial_julia_performance.jl <mesh size x> <number of samples>` <br>
+    
 
 
 # How to run a simulation with MPI (distributed) scaling test

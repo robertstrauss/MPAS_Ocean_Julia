@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 using DataFrames, CSV, DelimitedFiles, Statistics
@@ -15,7 +15,7 @@ FORTRAN_DATA_ROOT = CODE_ROOT * "/data/new-fortran-timing/"
 include(CODE_ROOT * "/visualization.jl")
 
 
-# In[5]:
+# In[2]:
 
 
 # the maximum number of processes each mesh resolution was parallelized with
@@ -41,7 +41,7 @@ ftprocs = Dict{Int64, Vector{Tuple{Int64, Int64}}}(
 ("")
 
 
-# In[6]:
+# In[3]:
 
 
 function latestfile(dir, filterfunc)
@@ -51,7 +51,7 @@ function latestfile(dir, filterfunc)
 end
 
 
-# In[19]:
+# In[4]:
 
 
 function juliatimes(nCellsX, jprocs=4096)
@@ -104,37 +104,31 @@ function fortrantimes(nCellsX, fprocs=[(64, 4096), (1, 256)], plane=64)
     fmpiminmax = collect([mpiminmax[p][k] for k in 1:2, p in procs])
     return fruntimes, fmpitimes, procs, frunminmax, fmpiminmax, fortrandir
 end
-function juliafortrantimesplits(nCellsX, jprocs="max", fprocs="max")
-    if jprocs == "max"
-        jprocs = maxprocs[nCellsX]
-    end
-    if fprocs == "max"
-        fprocs = ftprocs[nCellsX]
-    end
+function juliafortrantimesplits(nCellsX, jprocs=4096, fprocs=4096)
     juliarunmean, juliampimean, juliaprocs, juliarunminmax, juliampiminmax, juliafname = juliatimes(nCellsX, jprocs)
     fortranrunmean, fortranmpimean, fortranprocs, fortranrunminmax, fortranmpiminmax, fortranfnamerun = fortrantimes(nCellsX, fprocs)
     return juliarunmean, juliampimean, juliaprocs, fortranrunmean, fortranmpimean, fortranprocs, juliafname, fortranfnamerun, juliarunminmax, juliampiminmax, fortranrunminmax, fortranmpiminmax
 end
 
 
-# In[18]:
-
-# 
-# for nCellsX in [16, 32, 64, 128, 256, 512]
-#     frun, fmpi, fprocs, frunminmax, fmpiminmax, ffile = fortrantimes(nCellsX, ftprocs[nCellsX], 64)
-#     
-#     println("$(nCellsX)x, 64-plane: any mpi times > total? $(any(fmpi .> frun))")
-#     if any(fmpi .> frun)
-#         println("file: ", ffile)
-#         println("total time: ", frun)
-#         println("mpi time: ", fmpi)
-#     else
-#         println("minimum computation time (total-mpi): ", minimum(frun - fmpi))
-#     end
-# end
+# In[5]:
 
 
-# In[20]:
+for nCellsX in [16, 32, 64, 128, 256, 512]
+    frun, fmpi, fprocs, frunminmax, fmpiminmax, ffile = fortrantimes(nCellsX, ftprocs[nCellsX], 64)
+    
+    println("$(nCellsX)x, 64-plane: any mpi times > total? $(any(fmpi .> frun))")
+    if any(fmpi .> frun)
+        println("file: ", ffile)
+        println("total time: ", frun)
+        println("mpi time: ", fmpi)
+    else
+        println("minimum computation time (total-mpi): ", minimum(frun - fmpi))
+    end
+end
+
+
+# In[6]:
 
 
 linewidth = 1
@@ -147,7 +141,7 @@ blue = "blue"
 red = "red"
 
 
-# In[21]:
+# In[7]:
 
 
 function strongscalingplot(juliameans, juliaprocs, fortranmeans, fortranprocs, nCellsX, juliaerr=0, fortranerr=0; perfect=true)
@@ -173,7 +167,7 @@ function strongscalingplot(juliameans, juliaprocs, fortranmeans, fortranprocs, n
     # ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     
     ax.set_xlabel("Number of processors", fontsize=labelfontsize, labelpad=10)
-    ax.set_ylabel("Wall-clock time (s)", fontsize=labelfontsize, labelpad=10)
+    ax.set_ylabel("Simulation time (s)", fontsize=labelfontsize, labelpad=10)
     ax.set_title("$(nCellsX)x$(nCellsX) Hexagonal Mesh", fontsize=titlefontsize, fontweight="bold", y=1.02)
     ax.legend(loc="upper right", fontsize=labelfontsize-2.5)
 
@@ -184,32 +178,32 @@ function strongscalingplot(juliameans, juliaprocs, fortranmeans, fortranprocs, n
 end
 
 
-# In[25]:
+# In[8]:
 
 
 savefigs=true
 
 
-# In[23]:
+# In[9]:
 
-# 
-# # for plane in [32, 64]
-# for nCellsX in [128, 256, 512]
-#     jrun, jmpi, jprocs, jrunminmax, jmpiminmax, jfile = juliatimes(nCellsX, maxprocs[nCellsX])
-#     frun32, fmpi32, fprocs32, frunminmax32, fmpiminmax32, _ = fortrantimes(nCellsX, [(64, 4096)], 32)
-#     frun64, fmpi64, fprocs64, frunminmax64, fmpiminmax64, _ = fortrantimes(nCellsX, ftprocs[nCellsX], 64)
-# 
-#     fig, ax = strongscalingplot(jrun, jprocs, frun64, fprocs64, nCellsX,
-#                         abs.(jrun' .- jrunminmax), abs.(frun64' .- frunminmax64))
-#     ax.errorbar(fprocs32, frun32, yerr=abs.(frun32' .- frunminmax32), label="Fortran plane 32", linewidth=linewidth,
-#                 capsize=5, linestyle="--", color="cyan", marker="D",markersize=markersize)
-#     ax.legend()
-#     # ax.set_title("Plane=$(plane) $(nCellsX)x$(nCellsX) Hexagonal Mesh\nComputation and Communication", fontsize=titlefontsize, fontweight="bold", y=1.02)
+
+# for plane in [32, 64]
+for nCellsX in [128, 256, 512]
+    jrun, jmpi, jprocs, jrunminmax, jmpiminmax, jfile = juliatimes(nCellsX, maxprocs[nCellsX])
+    frun32, fmpi32, fprocs32, frunminmax32, fmpiminmax32, _ = fortrantimes(nCellsX, [(64, 4096)], 32)
+    frun64, fmpi64, fprocs64, frunminmax64, fmpiminmax64, _ = fortrantimes(nCellsX, ftprocs[nCellsX], 64)
+
+    fig, ax = strongscalingplot(jrun, jprocs, frun64, fprocs64, nCellsX,
+                        abs.(jrun' .- jrunminmax), abs.(frun64' .- frunminmax64))
+    ax.errorbar(fprocs32, frun32, yerr=abs.(frun32' .- frunminmax32), label="Fortran plane 32", linewidth=linewidth,
+                capsize=5, linestyle="--", color="cyan", marker="D",markersize=markersize)
+    ax.legend()
+    # ax.set_title("Plane=$(plane) $(nCellsX)x$(nCellsX) Hexagonal Mesh\nComputation and Communication", fontsize=titlefontsize, fontweight="bold", y=1.02)
+end
 # end
-# # end
 
 
-# In[26]:
+# In[10]:
 
 
 for nCellsX in [128, 256, 512] # 16, 32, 64, 
@@ -260,57 +254,14 @@ for nCellsX in [128, 256, 512] # 16, 32, 64,
         fig1.savefig("$(CODE_ROOT)/plots/strong_scaling/calc_only_$(savename).pdf", bbox_inches="tight")
         fig2.savefig("$(CODE_ROOT)/plots/strong_scaling/comm_only_$(savename).pdf", bbox_inches="tight")
         println("saved at $(CODE_ROOT)/plots/strong_scaling/calc_only_$(savename).pdf")
-        println("saved at $(CODE_ROOT)/plots/strong_scaling/comm_only_$(savename).pdf")
     end
     
     println(jfile[end-60:end])
     println(ffile[end-60:end])
 end
 
-function strongscalingplot2(juliasim, juliasimminmax, juliampi, juliampiminmax, juliaprocs, fortransim, fortransimminmax, fortranmpi, fortranmpiminmax, fortranprocs, nCellsX)
 
-    perfectjulia = (juliampi[1] + juliasim[1]) * juliaprocs[1] ./ juliaprocs
-
-    linewidth = 1
-    linestyle = "-"
-    markersize = 10
-    tickfontsize = 15
-    labelfontsize = 22.5
-    titlefontsize = 25
-    blue = "blue"
-    red = "red"
-
-    fig, ax = plt.subplots(figsize=(9,9))
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    
-    ax.errorbar(juliaprocs, juliampi, yerr=abs.(juliampi' .-juliampiminmax), label="Julia communication", linewidth=linewidth,linestyle="--",color=red,marker="P",markersize=markersize, capsize=5)
-    ax.errorbar(fortranprocs, fortranmpi, yerr=abs.(fortranmpi' .-fortranmpiminmax), label="Fortran communication", linewidth=linewidth,linestyle="--",color=blue,marker="X",markersize=markersize, capsize=5)
-    
-    ax.errorbar(juliaprocs, juliasim, yerr=abs.(juliasim' .-juliasimminmax), label="Julia computation", linewidth=linewidth,linestyle="-",color=red,marker="s",markersize=markersize, capsize=5)
-    ax.errorbar(fortranprocs, fortransim, yerr=abs.(fortransim' .-fortransimminmax), label="Fortran computation", linewidth=linewidth,linestyle="-",color=blue,marker="D",markersize=markersize, capsize=5)
-    
-    
-    ax.loglog(juliaprocs, perfectjulia, label="Perfect scaling", linestyle=":", color="black", linewidth=2)
-
-
-    ax.set_xticks(juliaprocs)
-    ax.tick_params(axis="x", labelsize=tickfontsize)
-    ax.tick_params(axis="y", labelsize=tickfontsize)
-    ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    
-    ax.set_xlabel("Number of processors", fontsize=labelfontsize, labelpad=10)
-    ax.set_ylabel("Wall-clock time (s)", fontsize=labelfontsize, labelpad=10)
-    ax.set_title("$(nCellsX)x$(nCellsX) Hexagonal Mesh", fontsize=titlefontsize, fontweight="bold", y=1.02)
-    ax.legend(loc="upper right", fontsize=labelfontsize-2.5)
-
-    ax.grid(which="both")
-    plt.tight_layout()
-
-    return fig, ax
-end
-# In[109]:
+# In[11]:
 
 
 function timesplitplot(nprocs, comptime, mpitime, nCellsX, info="")
@@ -346,11 +297,19 @@ function timesplitplot(nprocs, comptime, mpitime, nCellsX, info="")
 end
 
 
-# In[111]:
+# In[13]:
+
+
+#fortranprocs
+
+
+# In[16]:
 
 
 nCellsX = 512
-juliasim, juliampi, juliaprocs, fortransim, fortranmpi, fortranprocs, juliafname, fortranfname, juliasimminmax, juliampiminmax = juliafortrantimesplits(nCellsX)
+# juliasim, juliampi, juliaprocs, fortransim, fortranmpi, fortranprocs, juliafname, fortranfname, juliasimminmax, juliampiminmax = juliafortrantimesplits(nCellsX)
+juliasim, juliampi, juliaprocs, juliasimminmax, juliampiminmax, juliafname = juliatimes(nCellsX, maxprocs[nCellsX])
+fortransim, fortranmpi, fortranprocs, fortransimminmax, fortranmpiminmax, fortranfname = fortrantimes(nCellsX, ftprocs[nCellsX])
 
 fig1, ax = timesplitplot(juliaprocs, juliasim, juliampi, nCellsX, "Julia")
 fig2, ax = timesplitplot(fortranprocs, fortransim, fortranmpi, nCellsX, "Fortran")
@@ -359,12 +318,14 @@ if savefigs
     savenamejl = replace(juliafname[length(CODE_ROOT)+2:end], ("/" => "--"))
     savenameft = replace(fortranfname[length(CODE_ROOT)+2:end], ("/" => "--"))
     fig1.savefig("$(CODE_ROOT)/plots/time_proportion/julia_$(savenamejl).pdf", bbox_inches="tight")
+    println("Saved figures at $(CODE_ROOT)/plots/time_proportion/julia_$(savenamejl).pdf")
     # fig1.savefig("$(juliafname)_proportion_sim_mpi.pdf", bbox_inches="tight")
     fig2.savefig("$(CODE_ROOT)/plots/time_proportion/fortran_$(savenameft).pdf", bbox_inches="tight")
+    println("Saved figure at $(CODE_ROOT)/plots/time_proportion/fortran_$(savenameft).pdf")
 end
 
 
-# In[8]:
+# In[23]:
 
 
 function weakscalingplot(;which="total", resolutions = [16, 32, 64, 128, 256, 512], constlines = [64], mode="weak_scaling", gpu=false)
@@ -460,7 +421,7 @@ function weakscalingplot(;which="total", resolutions = [16, 32, 64, 128, 256, 51
         fig, ax = plt.subplots(1,1, figsize=(9,9))
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_ylabel("Wall-clock time (s)", fontsize=labelfontsize, labelpad=10)
+        ax.set_ylabel("Simulation time (s)", fontsize=labelfontsize, labelpad=10)
         
         if which == "total"
             whichname = "Computation and Communication"
@@ -511,9 +472,9 @@ function weakscalingplot(;which="total", resolutions = [16, 32, 64, 128, 256, 51
             # clip out single-processor communication time as this is meaningless
             julialines[1].set_data(xaxis[2:end], jltimes[2:end,i])
             fortranlines[1].set_data(xaxis[2:end], fttimes[2:end,i])
-            for errorbar in [ julialines[3][1], fortranlines[3][1] ]
-                errorbar.set_alpha(vcat(0, [1 for i in 2:length(xaxis)]))
-            end
+            #for errorbar in [ julialines[3][1], fortranlines[3][1] ]
+            #    errorbar.set_alpha(vcat(0.0, [1 for i in 2:length(xaxis)]))
+            #end
             for cap in (julialines[2]..., fortranlines[2]...)
                 capdata = cap.get_data()
                 cap.set_data((capdata[1][2:end], capdata[2][2:end]))
@@ -539,13 +500,13 @@ function weakscalingplot(;which="total", resolutions = [16, 32, 64, 128, 256, 51
 end
 
 
-# In[9]:
+# In[24]:
 
 
-# savefigs=false
+savefigs=true
 
 
-# In[10]:
+# In[25]:
 
 
 for which in ["total", "mpi", "comp"]
@@ -559,16 +520,16 @@ end
 
 
 
-# In[64]:
+# In[26]:
 
 
 for which in ["total", "mpi", "comp"]
     weakscalingplot(which=which, resolutions = [16, 32, 64, 128, 256, 512], constlines = [64,], mode="constant_nprocs", gpu=true)
 end
 
-#=
-# In[39]:
 
+# In[39]:
+#=
 
 fortrantimes(32, ftprocs[32])
 
@@ -680,4 +641,7 @@ jc
 # In[ ]:
 
 
+
+
 =#
+

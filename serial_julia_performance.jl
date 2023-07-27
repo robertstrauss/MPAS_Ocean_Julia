@@ -1,4 +1,5 @@
 include("mode_forward/time_steppers.jl")
+include("mode_forward/calculate_tendencies.jl")
 include("mode_init/MPAS_Ocean.jl")
 include("mode_init/exactsolutions.jl")
 CODE_ROOT = pwd() * "/"
@@ -8,9 +9,9 @@ using Dates
 
 function kelvinwaveserialperformance(fname, nCellsX, nSamples=10, nSteps=10)
 
-    mpasOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/MPAS_O_Shallow_Water_Mesh_Generation/CoastalKelvinWaveMesh/ConvergenceStudyMeshes",
-                        "culled_mesh_$(nCellsX).nc",
-                        "mesh_$(nCellsX).nc", periodicity="NonPeriodic_x", nvlevels=1)
+    mpasOcean = MPAS_Ocean(CODE_ROOT * "MPAS_O_Shallow_Water/ConvergenceStudyMeshes/CoastalKelvinWave",
+                        "culled_mesh_$(nCellsX)x$(nCellsX).nc",
+                        "mesh_$(nCellsX)x$(nCellsX).nc", periodicity="NonPeriodic_x", nvlevels=1)
 
 
     meanCoriolisParameterf = sum(mpasOcean.fEdge) / length(mpasOcean.fEdge)
@@ -40,8 +41,8 @@ function kelvinwaveserialperformance(fname, nCellsX, nSamples=10, nSteps=10)
 
                 boundaryCondition!(mpasOcean, exacttime)
 
-                calculate_ssh_tendency!(mpasOcean)
-                update_ssh_by_tendency!(mpasOcean)
+                calculate_thickness_tendency!(mpasOcean)
+                update_thickness_by_tendency!(mpasOcean)
 
                 exacttime += mpasOcean.dt
             end
